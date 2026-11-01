@@ -1,0 +1,1853 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Santa Cándida - Gestión Angus Offline</title>
+  <link rel="manifest" href="manifest.json">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = 'https://xmaplzwncqxvmlbsczif.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_zw24fTE6pgi0SJppwyw7pQ_0eNVR-Bp';
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  </script>
+  <style>
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .touch-scroll { -webkit-overflow-scrolling: touch; }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-900 pb-12 antialiased selection:bg-green-200">
+
+  <header class="bg-green-800 text-white p-3 shadow-md sticky top-0 z-40">
+    <div class="max-w-4xl mx-auto space-y-2">
+      <div class="flex justify-between items-center">
+        <h1 class="text-lg font-bold flex items-center gap-1.5">🐂 Santa Cándida</h1>
+        <span id="estado-red" class="text-[11px] bg-green-600 px-2 py-0.5 rounded-full font-semibold shrink-0">Online</span>
+      </div>
+      
+      <nav class="flex gap-1.5 bg-green-900/60 p-1 rounded-xl text-xs font-semibold overflow-x-auto no-scrollbar whitespace-nowrap touch-scroll">
+        <button onclick="cambiarVista('inventario')" id="btn-inventario" class="px-3 py-1.5 rounded-lg bg-white text-green-900 font-bold shadow shrink-0">Inventario</button>
+        <button onclick="cambiarVista('toros')" id="btn-toros" class="px-3 py-1.5 rounded-lg text-green-100 hover:bg-green-700 shrink-0">Toros</button>
+        <button onclick="cambiarVista('servicios')" id="btn-servicios" class="px-3 py-1.5 rounded-lg text-green-100 hover:bg-green-700 shrink-0">Servicios</button>
+        <button onclick="cambiarVista('arbol')" id="btn-arbol" class="px-3 py-1.5 rounded-lg text-green-100 hover:bg-green-700 shrink-0">Árbol Genealógico</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto p-3 sm:p-4">
+    <!-- VISTA INVENTARIO (Hembras / Vientres) -->
+    <section id="vista-inventario" class="space-y-3">
+      <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center gap-2">
+        <input type="text" id="input-buscar" oninput="filtrarGanado()" placeholder="🔍 Buscar RP, Nombre, Padre o HBA..." class="w-full p-2.5 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-green-600 bg-gray-50/50">
+        <button onclick="forzarRecargaSupa()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold px-3 py-2.5 rounded-lg shrink-0">🔄 Sincronizar</button>
+      </div>
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto touch-scroll">
+        <table class="w-full text-xs sm:text-sm text-left">
+          <thead class="bg-gray-100 text-[10px] sm:text-xs uppercase font-bold text-gray-600 border-b">
+            <tr>
+              <th class="p-2.5 sm:p-3">RP</th>
+              <th class="p-2.5 sm:p-3">Nombre</th>
+              <th class="p-2.5 sm:p-3">HBA</th>
+              <th class="p-2.5 sm:p-3 whitespace-nowrap">Padre</th>
+              <th class="p-2.5 sm:p-3 whitespace-nowrap">Madre</th>
+              <th class="p-2.5 sm:p-3">Tipo</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-body" class="divide-y text-gray-800"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- VISTA TOROS -->
+    <section id="vista-toros" class="hidden space-y-3">
+      <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+        <input type="text" id="input-buscar-toro" oninput="filtrarToros()" placeholder="🔍 Buscar toro por RP, Nombre o HBA..." class="w-full p-2.5 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-blue-600 bg-gray-50/50">
+      </div>
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto touch-scroll">
+        <table class="w-full text-xs sm:text-sm text-left">
+          <thead class="bg-gray-100 text-[10px] sm:text-xs uppercase font-bold text-gray-600 border-b">
+            <tr>
+              <th class="p-2.5 sm:p-3">RP</th>
+              <th class="p-2.5 sm:p-3 whitespace-nowrap">Nombre / Toro</th>
+              <th class="p-2.5 sm:p-3">HBA</th>
+              <th class="p-2.5 sm:p-3 whitespace-nowrap">C. Escrotal</th>
+              <th class="p-2.5 sm:p-3 whitespace-nowrap">Tipo</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-toros-body" class="divide-y text-gray-800"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- VISTA SERVICIOS -->
+    <section id="vista-servicios" class="hidden space-y-5">
+      <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 space-y-4 max-w-lg mx-auto">
+        <h2 class="text-base sm:text-lg font-bold text-gray-800">🧬 Registrar Nuevo Servicio / IA</h2>
+        <form id="form-servicio" onsubmit="guardarServicio(event)" class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Buscar Vaca (RP o Nombre):</label>
+            <input type="text" id="srv-vaca-search" oninput="buscarVacaParaServicio()" placeholder="Ej: 104..." class="w-full p-2.5 text-sm border rounded-lg">
+            <div id="srv-vaca-results" class="bg-white border rounded-lg hidden max-h-32 overflow-y-auto mt-1 shadow-lg"></div>
+            <input type="hidden" id="srv-vaca-id">
+            <p id="srv-vaca-sel" class="text-xs font-bold text-green-700 mt-1"></p>
+          </div>
+          
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Tipo de Servicio:</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button type="button" onclick="seleccionarTipoServicio('IA')" id="btntipo-IA" class="p-2 text-xs font-bold rounded-lg border bg-green-50 border-green-600 text-green-800 transition-all">Inseminación</button>
+              <button type="button" onclick="seleccionarTipoServicio('Natural')" id="btntipo-Natural" class="p-2 text-xs font-bold rounded-lg border bg-white border-gray-200 text-gray-700 transition-all">Natural</button>
+              <button type="button" onclick="seleccionarTipoServicio('Repaso')" id="btntipo-Repaso" class="p-2 text-xs font-bold rounded-lg border bg-white border-gray-200 text-gray-700 transition-all">Repaso</button>
+            </div>
+            <input type="hidden" id="srv-tipo" value="IA">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Toro / Reproductor Utilizado:</label>
+            <select id="srv-toro-select" onchange="sincronizarToroSelect(this)" class="w-full p-2.5 border rounded-lg bg-white text-xs sm:text-sm">
+              <option value="">Seleccionar toro del inventario...</option>
+            </select>
+            <input type="text" id="srv-toro" placeholder="O escribir nombre de toro/semen..." class="w-full p-2.5 border rounded-lg mt-1 text-xs">
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Fecha Servicio:</label>
+              <input type="date" id="srv-fecha" onchange="actualizarFPP()" class="w-full p-2.5 text-xs sm:text-sm border rounded-lg">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1">Parto (+283d):</label>
+              <div id="srv-fpp" class="p-2.5 bg-gray-100 rounded-lg font-bold text-blue-700 text-xs sm:text-sm">-</div>
+            </div>
+          </div>
+          <button type="submit" class="w-full bg-green-700 text-white font-bold p-3 rounded-lg hover:bg-green-800 text-sm">Registrar Servicio</button>
+        </form>
+      </div>
+
+      <div class="space-y-3">
+        <h3 class="text-sm font-bold text-gray-800">📅 Próximos Partos Registrados</h3>
+        <div id="contenedor-servicios" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+      </div>
+    </section>
+
+    <!-- VISTA ÁRBOL GENEALÓGICO -->
+    <section id="vista-arbol" class="hidden space-y-4">
+      <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 max-w-2xl mx-auto space-y-4">
+        <h2 class="text-base sm:text-lg font-bold text-gray-800">🌳 Visualizador Genealógico</h2>
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Escribí RP o Nombre del animal:</label>
+          <input type="text" id="arbol-search" oninput="buscarAnimalArbol()" placeholder="Ej: RP o Nombre..." class="w-full p-3 text-sm border rounded-xl">
+          <div id="arbol-results" class="bg-white border rounded-xl hidden max-h-40 overflow-y-auto mt-1 shadow-lg"></div>
+        </div>
+        <div id="arbol-card" class="hidden border border-green-200 bg-green-50/30 p-4 rounded-xl space-y-4">
+          <div class="border-b pb-2">
+            <span class="text-[10px] font-bold text-green-800 uppercase">Animal</span>
+            <h3 id="arb-nombre" class="text-base font-bold text-gray-900"></h3>
+            <p id="arb-sub" class="text-xs text-gray-500"></p>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="bg-white p-3 rounded-lg border border-blue-200">
+              <span class="text-[10px] font-bold text-blue-700 uppercase">Padre (Toro)</span>
+              <p id="arb-padre-nom" class="font-bold text-xs sm:text-sm text-gray-800 mt-0.5"></p>
+              <p id="arb-padre-rp" class="text-xs text-gray-600"></p>
+            </div>
+            <div class="bg-white p-3 rounded-lg border border-pink-200">
+              <span class="text-[10px] font-bold text-pink-700 uppercase">Madre (Vientre)</span>
+              <p id="arb-madre-nom" class="font-bold text-xs sm:text-sm text-gray-800 mt-0.5"></p>
+              <p id="arb-madre-rp" class="text-xs text-gray-600"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL FICHA ANIMAL -->
+  <div id="modal-animal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-2xl relative max-h-[92vh] overflow-y-auto touch-scroll">
+      <button onclick="cerrarFichaAnimal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 font-bold text-xl p-1">✕</button>
+      
+      <div class="flex items-center gap-3 border-b pb-4">
+        <div id="ficha-foto-container" class="w-16 h-16 sm:w-20 sm:h-20 bg-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative group shrink-0">
+          <span id="ficha-foto-placeholder" class="text-xl sm:text-2xl">🐂</span>
+          <img id="ficha-img" class="w-full h-full object-cover hidden cursor-pointer hover:opacity-90 transition-opacity" onclick="abrirVisorFotoPrincipal()" onerror="ocultarImagenRota(this, 'ficha-foto-placeholder')" />
+          <label class="absolute inset-x-0 bottom-0 bg-black/60 text-white text-[9px] py-1 text-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer font-bold">
+            Cambiar
+            <input type="file" accept="image/*" onchange="guardarFotoAnimalSupabase(event)" class="hidden">
+          </label>
+        </div>
+        <div class="pr-6">
+          <span id="ficha-tipo" class="text-[10px] bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-bold"></span>
+          <h2 id="ficha-nombre" class="text-lg sm:text-xl font-extrabold text-gray-900 mt-0.5 leading-tight"></h2>
+          <p class="text-xs text-gray-500 mt-0.5">RP: <span id="ficha-rp" class="font-bold text-gray-800"></span> | HBA: <span id="ficha-hba" class="font-bold text-gray-800"></span></p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div id="box-padre" class="bg-blue-50 p-2.5 rounded-xl border border-blue-100 transition-colors">
+          <span class="text-[10px] font-bold text-blue-700 uppercase">Padre</span>
+          <p id="ficha-padre" class="font-bold text-gray-800 mt-0.5 truncate">-</p>
+          <p id="ficha-padre-rp" class="text-[10px] text-blue-600 font-semibold mt-0.5"></p>
+        </div>
+        <div id="box-madre" class="bg-pink-50 p-2.5 rounded-xl border border-pink-100 transition-colors">
+          <span class="text-[10px] font-bold text-pink-700 uppercase">Madre</span>
+          <p id="ficha-madre" class="font-bold text-gray-800 mt-0.5 truncate">-</p>
+          <p id="ficha-madre-rp" class="text-[10px] text-pink-600 font-semibold mt-0.5"></p>
+        </div>
+      </div>
+
+      <div class="space-y-2 pt-2 border-t">
+        <div class="flex justify-between items-center">
+          <h3 class="text-xs sm:text-sm font-bold text-gray-800">📸 Carpeta Fotos y Videos</h3>
+          <label class="bg-green-700 text-white text-[11px] px-2.5 py-1.5 rounded-lg font-bold cursor-pointer inline-block shadow">
+            + Subir
+            <input type="file" accept="image/*,video/*" multiple onchange="subirMultimediaSupabase(event)" class="hidden">
+          </label>
+        </div>
+        <div id="ficha-galeria" class="grid grid-cols-4 gap-2 pt-1">
+          <p class="text-xs text-gray-400 col-span-4">Cargando archivos...</p>
+        </div>
+      </div>
+
+      <div class="space-y-2 pt-2 border-t">
+        <h3 class="text-xs sm:text-sm font-bold text-gray-800">👶 Registro de Crías</h3>
+        <div id="ficha-crias-lista" class="space-y-1.5 bg-gray-50 p-2.5 rounded-xl text-xs text-gray-600">
+          <p>No hay crías registradas.</p>
+        </div>
+        <div class="flex gap-2 mt-2">
+          <input type="text" id="nueva-cria-rp" placeholder="RP cría..." class="p-2 border rounded-lg text-xs flex-1">
+          <button onclick="agregarCria()" class="bg-green-700 text-white px-3 py-2 rounded-lg text-xs font-bold">Vincular</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL FICHA TORO -->
+  <div id="modal-toro" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-2xl max-w-xl w-full p-5 space-y-4 shadow-2xl relative max-h-[92vh] overflow-y-auto touch-scroll">
+      <button onclick="cerrarFichaToro()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 font-bold text-xl p-1">✕</button>
+      
+      <div class="flex items-center gap-3 border-b pb-4">
+        <div class="w-16 h-16 sm:w-20 sm:h-20 bg-blue-100 rounded-xl overflow-hidden flex items-center justify-center relative group shrink-0">
+          <span id="toro-foto-placeholder" class="text-xl sm:text-2xl">🐂</span>
+          <img id="toro-img" class="w-full h-full object-cover hidden cursor-pointer hover:opacity-90 transition-opacity" onclick="abrirVisorFotoToroPrincipal()" onerror="ocultarImagenRota(this, 'toro-foto-placeholder')" />
+          <label class="absolute inset-x-0 bottom-0 bg-black/60 text-white text-[9px] py-1 text-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer font-bold">
+            Cambiar
+            <input type="file" accept="image/*" onchange="guardarFotoToroSupabase(event)" class="hidden">
+          </label>
+        </div>
+        <div class="pr-6">
+          <span id="toro-tipo" class="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold">Toro Reproductor</span>
+          <h2 id="toro-nombre" class="text-lg sm:text-xl font-extrabold text-gray-900 mt-0.5 leading-tight"></h2>
+          <p class="text-xs text-gray-500 mt-0.5">RP: <span id="toro-rp" class="font-bold text-gray-800"></span> | HBA: <span id="toro-hba" class="font-bold text-gray-800"></span></p>
+        </div>
+      </div>
+
+      <div id="toro-padres-container" class="grid grid-cols-2 gap-2 text-xs">
+        <div id="toro-box-padre" class="bg-blue-50 p-2.5 rounded-xl border border-blue-100 transition-colors">
+          <span class="text-[10px] font-bold text-blue-700 uppercase">Padre</span>
+          <p id="toro-padre-nom" class="font-bold text-gray-800 mt-0.5 truncate">-</p>
+          <p id="toro-padre-rp" class="text-[10px] text-blue-600 font-semibold mt-0.5"></p>
+        </div>
+        <div id="toro-box-madre" class="bg-pink-50 p-2.5 rounded-xl border border-pink-100 transition-colors">
+          <span class="text-[10px] font-bold text-pink-700 uppercase">Madre</span>
+          <p id="toro-madre-nom" class="font-bold text-gray-800 mt-0.5 truncate">-</p>
+          <p id="toro-madre-rp" class="text-[10px] text-pink-600 font-semibold mt-0.5"></p>
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <h3 class="text-xs font-bold text-blue-900 uppercase tracking-wider">📊 Métricas del Catálogo</h3>
+        
+        <div class="grid grid-cols-3 gap-2 text-xs">
+          <div class="bg-blue-50/70 p-2 rounded-xl border border-blue-100 text-center">
+            <span class="text-[9px] text-gray-500 font-bold block">FRAME</span>
+            <span id="toro-frame" class="font-extrabold text-blue-900 text-sm">-</span>
+          </div>
+          <div class="bg-blue-50/70 p-2 rounded-xl border border-blue-100 text-center">
+            <span class="text-[9px] text-gray-500 font-bold block">C. ESCROTAL</span>
+            <span id="toro-ce" class="font-extrabold text-blue-900 text-sm">-</span>
+          </div>
+          <div class="bg-blue-50/70 p-2 rounded-xl border border-blue-100 text-center">
+            <span class="text-[9px] text-gray-500 font-bold block">F. NACIMIENTO</span>
+            <span id="toro-fnac" class="font-bold text-gray-800 text-[11px] block mt-0.5">-</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-4 gap-1.5 text-center bg-gray-50 p-2.5 rounded-xl border text-[11px]">
+          <div>
+            <span class="text-[9px] text-gray-400 font-bold block">P. NACER</span>
+            <span id="toro-pnacer" class="font-bold text-gray-800">-</span>
+          </div>
+          <div>
+            <span class="text-[9px] text-gray-400 font-bold block">P. 205D</span>
+            <span id="toro-p205d" class="font-bold text-gray-800">-</span>
+          </div>
+          <div>
+            <span class="text-[9px] text-gray-400 font-bold block">P. AÑO</span>
+            <span id="toro-pano" class="font-bold text-gray-800">-</span>
+          </div>
+          <div>
+            <span class="text-[9px] text-gray-400 font-bold block">P. MADURO</span>
+            <span id="toro-pmaduro" class="font-bold text-gray-800">-</span>
+          </div>
+        </div>
+
+        <div class="bg-amber-50/60 p-2.5 rounded-xl border border-amber-100 text-xs space-y-1">
+          <p><span class="font-bold text-amber-900">Pedigree:</span> <span id="toro-pedigree" class="text-gray-700">-</span></p>
+          <p><span class="font-bold text-amber-900">Criador:</span> <span id="toro-criador" class="text-gray-700">-</span></p>
+          <p><span class="font-bold text-amber-900">Propietario:</span> <span id="toro-propietario" class="text-gray-700">-</span></p>
+        </div>
+      </div>
+
+      <div id="contenedor-deps-era" class="space-y-2 pt-2 border-t hidden">
+        <div class="flex justify-between items-center">
+          <h3 class="text-xs font-bold text-blue-900 uppercase tracking-wider">🧬 Evaluación Genómica Programa ERA (<span id="era-fecha">Septiembre/2026</span>)</h3>
+        </div>
+        <div class="overflow-x-auto touch-scroll border rounded-xl bg-white shadow-sm">
+          <table class="w-full text-[11px] text-center">
+            <thead class="bg-gray-900 text-white font-bold">
+              <tr>
+                <th class="p-1.5 text-left pl-2">Métrica</th>
+                <th class="p-1.5">Gest.</th>
+                <th class="p-1.5">Nacer</th>
+                <th class="p-1.5">Dest.</th>
+                <th class="p-1.5">Leche</th>
+                <th class="p-1.5">Final</th>
+                <th class="p-1.5">C.E.</th>
+                <th class="p-1.5">Altura</th>
+                <th class="p-1.5">E.G.D.</th>
+                <th class="p-1.5">E.G.C.</th>
+                <th class="p-1.5">A.O.B.</th>
+                <th class="p-1.5">% G.I.</th>
+                <th class="p-1.5">% C.M.</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y text-gray-800 font-semibold">
+              <tr class="bg-blue-50/50">
+                <td class="p-1.5 text-left pl-2 font-bold text-blue-900">DEP</td>
+                <td id="dep-gest">-</td>
+                <td id="dep-nacer">-</td>
+                <td id="dep-dest">-</td>
+                <td id="dep-leche">-</td>
+                <td id="dep-final">-</td>
+                <td id="dep-ce">-</td>
+                <td id="dep-altura">-</td>
+                <td id="dep-egd">-</td>
+                <td id="dep-egc">-</td>
+                <td id="dep-aob">-</td>
+                <td id="dep-gi">-</td>
+                <td id="dep-cm">-</td>
+              </tr>
+              <tr>
+                <td class="p-1.5 text-left pl-2 text-gray-500 font-bold">Prec.</td>
+                <td id="prec-gest">-</td>
+                <td id="prec-nacer">-</td>
+                <td id="prec-dest">-</td>
+                <td id="prec-leche">-</td>
+                <td id="prec-final">-</td>
+                <td id="prec-ce">-</td>
+                <td id="prec-altura">-</td>
+                <td id="prec-egd">-</td>
+                <td id="prec-egc">-</td>
+                <td id="prec-aob">-</td>
+                <td id="prec-gi">-</td>
+                <td id="prec-cm">-</td>
+              </tr>
+              <tr class="bg-gray-50 text-gray-600">
+                <td class="p-1.5 text-left pl-2 font-bold">Percen.</td>
+                <td id="perc-gest">-</td>
+                <td id="perc-nacer">-</td>
+                <td id="perc-dest">-</td>
+                <td id="perc-leche">-</td>
+                <td id="perc-final">-</td>
+                <td id="perc-ce">-</td>
+                <td id="perc-altura">-</td>
+                <td id="perc-egd">-</td>
+                <td id="perc-egc">-</td>
+                <td id="perc-aob">-</td>
+                <td id="perc-gi">-</td>
+                <td id="perc-cm">-</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="space-y-2 pt-2 border-t">
+        <div class="flex justify-between items-center">
+          <h3 class="text-xs sm:text-sm font-bold text-gray-800">📸 Fotos y Videos del Toro</h3>
+          <label class="bg-blue-700 text-white text-[11px] px-2.5 py-1.5 rounded-lg font-bold cursor-pointer inline-block shadow">
+            + Subir
+            <input type="file" accept="image/*,video/*" multiple onchange="subirMultimediaToroSupabase(event)" class="hidden">
+          </label>
+        </div>
+        <div id="toro-galeria" class="grid grid-cols-4 gap-2 pt-1">
+          <p class="text-xs text-gray-400 col-span-4">Cargando archivos...</p>
+        </div>
+      </div>
+
+      <div class="space-y-2 pt-2 border-t">
+        <h3 class="text-xs sm:text-sm font-bold text-gray-800">📋 Servicios Registrados</h3>
+        <div id="toro-servicios-lista" class="space-y-1.5 bg-gray-50 p-2.5 rounded-xl text-xs text-gray-600 max-h-36 overflow-y-auto">
+          <p>No hay servicios registrados.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VISOR MULTIMEDIA -->
+  <div id="modal-visor-foto" class="fixed inset-0 bg-black/95 hidden z-50 flex items-center justify-center p-2 sm:p-4">
+    <button onclick="cerrarVisorFoto()" class="absolute top-4 right-4 text-white text-3xl font-bold p-2 z-30">✕</button>
+    <button onclick="cambiarFotoVisor(-1)" id="btn-visor-prev" class="absolute left-2 text-white text-3xl font-bold bg-black/40 px-3 py-1.5 rounded-full z-30">❮</button>
+    <button onclick="cambiarFotoVisor(1)" id="btn-visor-next" class="absolute right-2 text-white text-3xl font-bold bg-black/40 px-3 py-1.5 rounded-full z-30">❯</button>
+    
+    <div class="max-w-4xl max-h-[85vh] flex flex-col items-center justify-center w-full">
+      <img id="visor-img-grande" class="max-w-full max-h-[75vh] object-contain rounded-lg" />
+      <p id="visor-indicador" class="text-white text-xs mt-3 font-semibold"></p>
+    </div>
+  </div>
+
+  <script>
+    let ganadoMemoria = [];
+    let serviciosMemoria = [];
+    let animalActual = null;
+    let toroActual = null;
+    let visorFotosActuales = [];
+    let visorIndiceActual = 0;
+
+    const TOROS_CATALOGO_INICIAL = [
+      { 
+        id: "toro-735", 
+        nombre: "RP 735", 
+        hba: "Pendiente", 
+        rp: "735", 
+        fecha_nacimiento: null, 
+        peso_nacer: null, 
+        peso_205d: null, 
+        peso_ano: null, 
+        peso_maduro: null, 
+        frame: null, 
+        circunferencia_escrotal: null, 
+        padre: "Halcón",
+        rp_padre: "8554",
+        madre: "262",
+        rp_madre: "262",
+        pedigree: "Halcón x 262 (RP 262)", 
+        criador: "Cabaña Santa Cándida", 
+        propietario: "Cabaña Santa Cándida", 
+        sexo: "M", 
+        tipo: "Toro Reproductor",
+        es_propio: true
+      },
+      { 
+        id: "toro-yanquetruz", 
+        nombre: "TRES MARIAS C337 YANQUETRUZ T/E", 
+        hba: "888590", 
+        rp: "C337", 
+        fecha_nacimiento: "2022-04-16", 
+        peso_nacer: 44.0, 
+        peso_205d: 357.0, 
+        peso_ano: 791.0, 
+        peso_maduro: 1050, 
+        frame: null, 
+        circunferencia_escrotal: 42.0, 
+        padre: "DON JOSE 176 MAXI-T/E",
+        madre: "TRES MARIAS B074 GARDEL 9946-T/E",
+        pedigree: "Maxi x Gardel x Credito", 
+        criador: "Cabaña Tres Marías de Gutiérrez", 
+        propietario: "Lenti, Legaccio, Agroganadera Pucon, GENPRO", 
+        sexo: "M", 
+        tipo: "Toro Reproductor",
+        es_propio: false,
+        era_evaluacion: "Catálogo GENPRO / ERA",
+        deps: {
+          gest: { dep: "-0.2", prec: "0.27", percen: "-" },
+          nacer: { dep: "+1.3", prec: "0.55", percen: "-" },
+          dest: { dep: "+9.5", prec: "0.56", percen: "25%" },
+          leche: { dep: "+3.6", prec: "0.42", percen: "20%" },
+          final: { dep: "+43.6", prec: "0.42", percen: "4%" },
+          ce: { dep: "+1.7", prec: "0.52", percen: "20%" },
+          altura: { dep: "+2.9", prec: "0.57", percen: "-" },
+          egd: { dep: "+0.05", prec: "0.30", percen: "-" },
+          egc: { dep: "+0.13", prec: "0.31", percen: "-" },
+          aob: { dep: "+1.7", prec: "0.31", percen: "-" },
+          gi: { dep: "-0.11", prec: "0.34", percen: "-" },
+          cm: { dep: "+0.5", prec: "0.31", percen: "15%" }
+        }
+      },
+      { 
+        id: "toro-779", 
+        nombre: "RP 779", 
+        hba: "920985", 
+        rp: "779", 
+        fecha_nacimiento: "2025-09-11", 
+        peso_nacer: null, 
+        peso_205d: null, 
+        peso_ano: null, 
+        peso_maduro: null, 
+        frame: null, 
+        circunferencia_escrotal: null, 
+        padre: "LÚCUMA",
+        rp_padre: "4178",
+        madre: "374",
+        rp_madre: "374",
+        pedigree: "LÚCUMA x 374 (RP 374)", 
+        criador: "Cabaña Santa Cándida", 
+        propietario: "Cabaña Santa Cándida", 
+        sexo: "M", 
+        tipo: "Toro Reproductor",
+        es_propio: true
+      },
+      { 
+        id: "toro-631", 
+        nombre: "HERJA ZORZAL 407 ÑATO T/E", 
+        hba: "901597", 
+        rp: "631", 
+        fecha_nacimiento: "2023-09-18", 
+        peso_nacer: 30, 
+        peso_205d: null, 
+        peso_ano: null, 
+        peso_maduro: null, 
+        frame: null, 
+        circunferencia_escrotal: null, 
+        padre: "EL ABRA JEWLIAN MELGA A893",
+        rp_padre: "A893",
+        madre: "ANTOCAR CAROLA",
+        rp_madre: "407",
+        pedigree: "EL ABRA JEWLIAN MELGA A893 x ANTOCAR CAROLA (RP 407)", 
+        criador: "Santa Cándida S.R.L.", 
+        propietario: "Santa Cándida S.R.L.", 
+        sexo: "M", 
+        tipo: "Toro Reproductor",
+        es_propio: true
+      },
+      { 
+        id: "toro-595", 
+        nombre: "Tano", 
+        hba: "Pendiente", 
+        rp: "595", 
+        fecha_nacimiento: null, 
+        peso_nacer: null, 
+        peso_205d: null, 
+        peso_ano: null, 
+        peso_maduro: null, 
+        frame: null, 
+        circunferencia_escrotal: null, 
+        padre: "Napolitano",
+        madre: "Santa Cándida 200",
+        rp_madre: "200",
+        pedigree: "Napolitano x Santa Cándida 200", 
+        criador: "Cabaña Santa Cándida", 
+        propietario: "Cabaña Santa Cándida", 
+        sexo: "M", 
+        tipo: "Toro Reproductor",
+        es_propio: true
+      },
+      { 
+        id: "toro-remixado", 
+        nombre: "Remixado", 
+        hba: "831468", 
+        rp: "1717", 
+        fecha_nacimiento: "2015-01-01", 
+        peso_nacer: 28, 
+        peso_205d: 265, 
+        peso_ano: 580, 
+        peso_maduro: 989, 
+        frame: 4.7, 
+        circunferencia_escrotal: 43, 
+        pedigree: null, 
+        criador: "Cabaña Don José", 
+        propietario: "Cabaña Don José / Cabaña La Guagua", 
+        sexo: "M", 
+        tipo: "Toro Reproductor",
+        es_propio: false,
+        era_evaluacion: "Septiembre/2026",
+        deps: {
+          gest: { dep: "-2.0", prec: "0.81", percen: "10%" },
+          nacer: { dep: "-1.1", prec: "0.91", percen: "20%" },
+          dest: { dep: "+3.1", prec: "0.89", percen: "80%" },
+          leche: { dep: "+4.8", prec: "0.69", percen: "10%" },
+          final: { dep: "+15.1", prec: "0.81", percen: "65%" },
+          ce: { dep: "+0.8", prec: "0.86", percen: "80%" },
+          altura: { dep: "+1.3", prec: "0.89", percen: "65%" },
+          egd: { dep: "+0.44", prec: "0.81", percen: "20%" },
+          egc: { dep: "+0.83", prec: "0.82", percen: "15%" },
+          aob: { dep: "+1.2", prec: "0.81", percen: "55%" },
+          gi: { dep: "+0.02", prec: "0.82", percen: "35%" },
+          cm: { dep: "-0.7", prec: "0.81", percen: "85%" }
+        }
+      },
+      { id: "toro-caracho", nombre: "Caracho", hba: "845146", rp: "2105", fecha_nacimiento: "2017-08-13", peso_nacer: 36, peso_205d: 343, peso_ano: 600, peso_maduro: 980, frame: 4.1, circunferencia_escrotal: 40, pedigree: "Remixado x Bismarck x Final Dream", criador: "Cabaña Don José", propietario: "Cabaña Don José", sexo: "M", tipo: "Toro Reproductor", es_propio: false },
+      { id: "toro-record", nombre: "Record", hba: "870459", rp: "579", fecha_nacimiento: "2020-08-08", peso_nacer: 34, peso_205d: 325, peso_ano: 630, peso_maduro: 1020, frame: 4.3, circunferencia_escrotal: 43, pedigree: "Reckoning x Yesquero x Perks Advance", criador: "Los Murmullos", propietario: "Cabaña El Cortijo de Campos de Torres", sexo: "M", tipo: "Toro Reproductor", es_propio: false },
+      { id: "toro-halcon", nombre: "Halcón", hba: "884763", rp: "8554", fecha_nacimiento: "2021-08-06", peso_nacer: 38, peso_205d: 321, peso_ano: 612, peso_maduro: 875, frame: 5.0, circunferencia_escrotal: 43, pedigree: "Prolijo x Quebrantador x Saugahatchee 3000", criador: "Cabaña La Rubeta", propietario: "Cabaña La Rubeta / Eaglehawk Angus", sexo: "M", tipo: "Toro Reproductor", es_propio: false },
+      { 
+        id: "toro-lucuma", 
+        nombre: "Lúcuma", 
+        hba: "834939", 
+        rp: "4178", 
+        fecha_nacimiento: "2016-08-30", 
+        peso_nacer: 28, 
+        peso_205d: 195, 
+        peso_ano: 430, 
+        peso_maduro: 890, 
+        frame: 4.5, 
+        circunferencia_escrotal: 41, 
+        pedigree: "Paine x Iporazo x Helvion", 
+        criador: "Casamu S.A.", 
+        propietario: "Select Debernardi / Cab. La Esencia / Cab. La Maruca", 
+        sexo: "M", 
+        tipo: "Toro Reproductor",
+        es_propio: false,
+        era_evaluacion: "Septiembre/2026",
+        deps: {
+          gest: { dep: "+0.1", prec: "0.82", percen: "75%" },
+          nacer: { dep: "-1.3", prec: "0.88", percen: "15%" },
+          dest: { dep: "+1.5", prec: "0.87", percen: "90%" },
+          leche: { dep: "-1.8", prec: "0.67", percen: "85%" },
+          final: { dep: "+6.5", prec: "0.82", percen: "90%" },
+          ce: { dep: "+1.5", prec: "0.88", percen: "25%" },
+          altura: { dep: "+1.0", prec: "0.89", percen: "75%" },
+          egd: { dep: "+0.17", prec: "0.84", percen: "55%" },
+          egc: { dep: "+0.46", prec: "0.85", percen: "50%" },
+          aob: { dep: "+0.7", prec: "0.84", percen: "70%" },
+          gi: { dep: "-0.05", prec: "0.84", percen: "80%" },
+          cm: { dep: "-0.2", prec: "0.84", percen: "55%" }
+        }
+      },
+      { 
+        id: "toro-napolitano", 
+        nombre: "Napolitano", 
+        hba: "842678", 
+        rp: "449", 
+        fecha_nacimiento: "2017-07-25", 
+        peso_nacer: 35, 
+        peso_205d: 304, 
+        peso_ano: 620, 
+        peso_maduro: 980, 
+        frame: 4.0, 
+        circunferencia_escrotal: 44, 
+        pedigree: "Napoleon x Sirocco x Falta Envido", 
+        criador: "Cabaña Santa Rosa", 
+        propietario: "Cabaña Santa Rosa", 
+        sexo: "M", 
+        tipo: "Toro Reproductor", 
+        es_propio: false,
+        era_evaluacion: "Septiembre/2026",
+        deps: {
+          gest: { dep: "-1.7", prec: "0.73", percen: "15%" },
+          nacer: { dep: "-0.1", prec: "0.80", percen: "55%" },
+          dest: { dep: "+5.2", prec: "0.78", percen: "60%" },
+          leche: { dep: "-1.4", prec: "0.53", percen: "80%" },
+          final: { dep: "+20.4", prec: "0.49", percen: "50%" },
+          ce: { dep: "+0.8", prec: "0.68", percen: "80%" },
+          altura: { dep: "+0.1", prec: "0.73", percen: "95%" },
+          egd: { dep: "+0.57", prec: "0.59", percen: "10%" },
+          egc: { dep: "+1.37", prec: "0.61", percen: "2%" },
+          aob: { dep: "+2.9", prec: "0.59", percen: "20%" },
+          gi: { dep: "+0.07", prec: "0.60", percen: "15%" },
+          cm: { dep: "-0.7", prec: "0.59", percen: "85%" }
+        }
+      },
+      { 
+        id: "toro-precoz", 
+        nombre: "Precoz", 
+        hba: "847918", 
+        rp: "7951", 
+        fecha_nacimiento: "2017-12-11", 
+        peso_nacer: 33, 
+        peso_205d: 340, 
+        peso_ano: 745, 
+        peso_maduro: 935, 
+        frame: 4.9, 
+        circunferencia_escrotal: 43, 
+        pedigree: "Franco x Quebrantador x Sakic", 
+        criador: "Rubeta S.A.", 
+        propietario: "Rubeta S.A. / Milkland / Santa Cecilia Agrop. S.A. / Cab. Mis Amores", 
+        sexo: "M", 
+        tipo: "Toro Reproductor", 
+        es_propio: false,
+        era_evaluacion: "Septiembre/2026",
+        deps: {
+          gest: { dep: "+0.1", prec: "0.57", percen: "75%" },
+          nacer: { dep: "+0.4", prec: "0.73", percen: "75%" },
+          dest: { dep: "+3.9", prec: "0.70", percen: "70%" },
+          leche: { dep: "-2.1", prec: "0.36", percen: "90%" },
+          final: { dep: "+17.3", prec: "0.53", percen: "60%" },
+          ce: { dep: "+0.8", prec: "0.67", percen: "80%" },
+          altura: { dep: "+2.5", prec: "0.71", percen: "15%" },
+          egd: { dep: "-0.47", prec: "0.57", percen: "100%" },
+          egc: { dep: "-0.34", prec: "0.59", percen: "100%" },
+          aob: { dep: "+1.7", prec: "0.56", percen: "40%" },
+          gi: { dep: "-0.03", prec: "0.57", percen: "65%" },
+          cm: { dep: "+1.2", prec: "0.56", percen: "2%" }
+        }
+      },
+      { 
+        id: "toro-rufian", 
+        nombre: "Rufián", 
+        hba: "871775", 
+        rp: "963", 
+        fecha_nacimiento: "2020-09-01", 
+        peso_nacer: 33, 
+        peso_205d: 381, 
+        peso_ano: 480, 
+        peso_maduro: 820, 
+        frame: 3.4, 
+        circunferencia_escrotal: 41, 
+        pedigree: "Bandido x Brutal x Contrato", 
+        criador: "Cabaña Santa Rosa", 
+        propietario: "Cabaña Santa Rosa", 
+        sexo: "M", 
+        tipo: "Toro Reproductor", 
+        es_propio: false,
+        era_evaluacion: "Septiembre/2026",
+        deps: {
+          gest: { dep: "-2.0", prec: "0.70", percen: "10%" },
+          nacer: { dep: "-0.6", prec: "0.76", percen: "35%" },
+          dest: { dep: "+1.1", prec: "0.74", percen: "90%" },
+          leche: { dep: "+3.4", prec: "0.36", percen: "20%" },
+          final: { dep: "+10.4", prec: "0.56", percen: "80%" },
+          ce: { dep: "+1.5", prec: "0.71", percen: "25%" },
+          altura: { dep: "+1.3", prec: "0.75", percen: "65%" },
+          egd: { dep: "+0.28", prec: "0.70", percen: "40%" },
+          egc: { dep: "+0.74", prec: "0.73", percen: "25%" },
+          aob: { dep: "+1.2", prec: "0.69", percen: "55%" },
+          gi: { dep: "+0.15", prec: "0.73", percen: "3%" },
+          cm: { dep: "-0.3", prec: "0.69", percen: "65%" }
+        }
+      },
+      { 
+        id: "toro-rumi", 
+        nombre: "Rumi", 
+        hba: "867566", 
+        rp: "B326", 
+        fecha_nacimiento: "2018-08-09", 
+        peso_nacer: 31, 
+        peso_205d: 209, 
+        peso_ano: 584, 
+        peso_maduro: 894, 
+        frame: null, 
+        circunferencia_escrotal: 42, 
+        pedigree: "Esencial x Eñun x Mulpun", 
+        criador: "Casamu S.A.", 
+        propietario: "Casamu S.A. (Comercializa Select Debernardi)", 
+        sexo: "M", 
+        tipo: "Toro Reproductor",
+        es_propio: false,
+        era_evaluacion: "Septiembre/2026",
+        deps: {
+          gest: { dep: "-1.9", prec: "0.81", percen: "10%" },
+          nacer: { dep: "-2.4", prec: "0.87", percen: "2%" },
+          dest: { dep: "+0.4", prec: "0.85", percen: "90%" },
+          leche: { dep: "-4.0", prec: "0.43", percen: "100%" },
+          final: { dep: "+12.4", prec: "0.74", percen: "75%" },
+          ce: { dep: "+0.5", prec: "0.81", percen: "90%" },
+          altura: { dep: "+0.9", prec: "0.80", percen: "75%" },
+          egd: { dep: "+0.50", prec: "0.83", percen: "15%" },
+          egc: { dep: "+0.82", prec: "0.84", percen: "20%" },
+          aob: { dep: "+0.3", prec: "0.83", percen: "80%" },
+          gi: { dep: "-0.08", prec: "0.83", percen: "90%" },
+          cm: { dep: "-1.1", prec: "0.83", percen: "95%" }
+        }
+      }
+    ];
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const hoy = new Date().toISOString().split("T")[0];
+      const inputFecha = document.getElementById("srv-fecha");
+      if (inputFecha) {
+        inputFecha.value = hoy;
+        actualizarFPP();
+      }
+
+      window.addEventListener("online", actualizarEstadoRed);
+      window.addEventListener("offline", actualizarEstadoRed);
+      actualizarEstadoRed();
+
+      setTimeout(cargarDatosSeguro, 50);
+    });
+
+    function ocultarImagenRota(imgEl, idPlaceholder) {
+      if (imgEl) imgEl.classList.add("hidden");
+      const ph = document.getElementById(idPlaceholder);
+      if (ph) ph.classList.remove("hidden");
+    }
+
+    function actualizarEstadoRed() {
+      const el = document.getElementById("estado-red");
+      if (!el) return;
+      if (navigator.onLine) {
+        el.innerText = "Online";
+        el.className = "text-[11px] bg-green-600 px-2 py-0.5 rounded-full font-semibold shrink-0";
+      } else {
+        el.innerText = "Offline";
+        el.className = "text-[11px] bg-amber-600 px-2 py-0.5 rounded-full font-semibold shrink-0";
+      }
+    }
+
+    async function cambiarVista(vista) {
+      ["inventario", "toros", "servicios", "arbol"].forEach((v) => {
+        const seccion = document.getElementById(`vista-${v}`);
+        const btn = document.getElementById(`btn-${v}`);
+        if (seccion) seccion.classList.add("hidden");
+        if (btn) btn.className = "px-3 py-1.5 rounded-lg text-green-100 hover:bg-green-700 shrink-0";
+      });
+
+      const seccionActiva = document.getElementById(`vista-${vista}`);
+      const btnActivo = document.getElementById(`btn-${vista}`);
+      if (seccionActiva) seccionActiva.classList.remove("hidden");
+      if (btnActivo) btnActivo.className = "px-3 py-1.5 rounded-lg bg-white text-green-900 font-bold shadow shrink-0";
+
+      if (vista === "inventario") renderizarGanado(ganadoMemoria);
+      if (vista === "toros") renderizarToros(ganadoMemoria);
+      if (vista === "servicios") {
+        poblarSelectTorosServicio();
+        await recargarServiciosDesdeSupa();
+      }
+    }
+
+    async function cargarDatosSeguro() {
+      try {
+        let ganadoSupa = [];
+
+        const guardadoViejo = localStorage.getItem("ganado_santa_candida");
+        if (guardadoViejo && (guardadoViejo.includes("559") || guardadoViejo.includes("661"))) {
+          localStorage.removeItem("ganado_santa_candida");
+        }
+
+        if (typeof supabaseClient !== 'undefined') {
+          try {
+            const { data: dataSupa, error } = await supabaseClient.from('ganado').select('*');
+            if (!error && dataSupa && dataSupa.length > 0) {
+              ganadoSupa = dataSupa;
+              localStorage.setItem("ganado_santa_candida", JSON.stringify(ganadoSupa));
+            }
+          } catch (errSup) {
+            console.warn("Error conectando a Supabase:", errSup);
+          }
+        }
+
+        if (!ganadoSupa || ganadoSupa.length === 0) {
+          ganadoSupa = JSON.parse(localStorage.getItem("ganado_santa_candida") || "[]");
+        }
+
+        let baseGanado = Array.isArray(ganadoSupa) ? [...ganadoSupa] : [];
+        
+        TOROS_CATALOGO_INICIAL.forEach(toroCat => {
+          const idx = baseGanado.findIndex(a => String(a.rp).toLowerCase() === String(toroCat.rp).toLowerCase() || (a.id && a.id === toroCat.id));
+          if (idx !== -1) {
+            baseGanado[idx] = { ...toroCat, ...baseGanado[idx], pedigree: toroCat.pedigree, deps: toroCat.deps, era_evaluacion: toroCat.era_evaluacion, es_propio: toroCat.es_propio };
+          } else {
+            baseGanado.push(toroCat);
+          }
+        });
+
+        ganadoMemoria = baseGanado;
+        await recargarServiciosDesdeSupa();
+        renderizarGanado(ganadoMemoria);
+        poblarSelectTorosServicio();
+      } catch (err) {
+        console.error("Error al cargar datos:", err);
+        ganadoMemoria = TOROS_CATALOGO_INICIAL;
+        renderizarGanado(ganadoMemoria);
+      }
+    }
+
+    async function recargarServiciosDesdeSupa() {
+      let serviciosSupa = [];
+      if (typeof supabaseClient !== 'undefined') {
+        try {
+          const { data: srvData, error } = await supabaseClient
+            .from('servicios')
+            .select('*')
+            .order('fecha_servicio', { ascending: false });
+
+          if (!error && srvData) {
+            serviciosSupa = srvData;
+            localStorage.setItem("servicios_santa_candida", JSON.stringify(serviciosSupa));
+          } else if (error) {
+            console.error("Error al leer servicios de Supabase:", error);
+          }
+        } catch(e) {
+          console.error("Excepción al consultar servicios en Supabase:", e);
+        }
+      }
+
+      const serviciosStorage = JSON.parse(localStorage.getItem("servicios_santa_candida") || "[]");
+      serviciosMemoria = (serviciosSupa && serviciosSupa.length > 0) ? serviciosSupa : serviciosStorage;
+      renderizarServicios(serviciosMemoria);
+    }
+
+    async function forzarRecargaSupa() {
+      localStorage.removeItem("ganado_santa_candida");
+      localStorage.removeItem("servicios_santa_candida");
+      alert("🔄 Limpiando caché y resincronizando con Supabase...");
+      await cargarDatosSeguro();
+      renderizarGanado(ganadoMemoria);
+    }
+
+    function esToroReproductor(a) {
+      if (!a) return false;
+      const rp = String(a.rp || "").toLowerCase();
+      const tipo = String(a.tipo || "").toLowerCase();
+      const sexo = String(a.sexo || "").toLowerCase();
+      const nombre = String(a.nombre || "").toLowerCase();
+      
+      const esDelCatalogoToros = TOROS_CATALOGO_INICIAL.some(tc => String(tc.rp).toLowerCase() === rp || tc.id === a.id);
+      if (esDelCatalogoToros) return true;
+
+      if ((tipo.includes("toro") || tipo.includes("reproductor") || sexo === "m" || sexo === "macho") && !tipo.includes("vaca") && !tipo.includes("vaquillona") && !tipo.includes("vientre")) {
+        if (!nombre.includes("herja") && !nombre.includes("candida")) return true;
+      }
+
+      return false;
+    }
+
+    function poblarSelectTorosServicio() {
+      const select = document.getElementById("srv-toro-select");
+      if (!select) return;
+
+      const toros = ganadoMemoria.filter(a => esToroReproductor(a));
+      select.innerHTML = `<option value="">Seleccionar toro del inventario...</option>` + 
+        toros.map(t => `<option value="${t.nombre || t.rp}">RP: ${t.rp} - ${t.nombre || 'Sin nombre'}</option>`).join("");
+    }
+
+    function sincronizarToroSelect(el) {
+      const inputToro = document.getElementById("srv-toro");
+      if (inputToro && el.value) inputToro.value = el.value;
+    }
+
+    function seleccionarTipoServicio(tipo) {
+      document.getElementById("srv-tipo").value = tipo;
+      ["IA", "Natural", "Repaso"].forEach(t => {
+        const btn = document.getElementById(`btntipo-${t}`);
+        if (!btn) return;
+        if (t === tipo) {
+          btn.className = "p-2 text-xs font-bold rounded-lg border bg-green-50 border-green-600 text-green-800 transition-all shadow-sm";
+        } else {
+          btn.className = "p-2 text-xs font-bold rounded-lg border bg-white border-gray-200 text-gray-700 transition-all";
+        }
+      });
+    }
+
+    function renderizarGanado(lista) {
+      const tbody = document.getElementById("tabla-body");
+      if (!tbody) return;
+      tbody.innerHTML = "";
+
+      const hembras = (lista || []).filter(a => !esToroReproductor(a));
+
+      if (hembras.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500">No hay hacienda registrada en inventario. Asegurate de que tu cliente de Supabase esté conectado y tenga registros en la tabla 'ganado'.</td></tr>`;
+        return;
+      }
+
+      hembras.forEach(animal => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-green-50 cursor-pointer transition-colors active:bg-green-100";
+        tr.onclick = () => abrirFichaAnimal(animal);
+        tr.innerHTML = `
+          <th class="p-2.5 sm:p-3 font-bold text-green-900 whitespace-nowrap">${animal.rp || "-"}</th>
+          <td class="p-2.5 sm:p-3 font-semibold min-w-[120px] sm:min-w-0">${animal.nombre || "-"}</td>
+          <td class="p-2.5 sm:p-3 text-gray-600 whitespace-nowrap">${animal.hba || "-"}</td>
+          <td class="p-2.5 sm:p-3 text-blue-800 whitespace-nowrap">${animal.padre || animal.nombre_padre || "-"}</td>
+          <td class="p-2.5 sm:p-3 text-pink-800 whitespace-nowrap">${animal.madre || animal.nombre_madre || "-"}</td>
+          <td class="p-2.5 sm:p-3 whitespace-nowrap"><span class="bg-green-100 text-green-800 text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-bold">${animal.tipo || "Vientre"}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function filtrarGanado() {
+      const inputB = document.getElementById("input-buscar");
+      if (!inputB) return;
+      const query = inputB.value.trim().toLowerCase();
+      if (!query) {
+        renderizarGanado(ganadoMemoria);
+        return;
+      }
+
+      const esNumero = /^\d+$/.test(query);
+
+      const filtrados = ganadoMemoria.filter(animal => {
+        if (esToroReproductor(animal)) return false;
+        if (esNumero) {
+          return animal.rp && animal.rp.toString().toLowerCase().includes(query);
+        } else {
+          const nombre = (animal.nombre || "").toLowerCase();
+          const padre = (animal.padre || animal.nombre_padre || "").toLowerCase();
+          const madre = (animal.madre || animal.nombre_madre || "").toLowerCase();
+          const rp = (animal.rp || "").toString().toLowerCase();
+          return nombre.includes(query) || padre.includes(query) || madre.includes(query) || rp.includes(query);
+        }
+      });
+
+      renderizarGanado(filtrados);
+    }
+
+    function renderizarToros(lista) {
+      const tbody = document.getElementById("tabla-toros-body");
+      if (!tbody) return;
+      tbody.innerHTML = "";
+
+      const toros = (lista || []).filter(a => esToroReproductor(a));
+
+      if (toros.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-gray-500">No hay toros registrados.</td></tr>`;
+        return;
+      }
+
+      toros.forEach(toro => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-blue-50 cursor-pointer transition-colors active:bg-blue-100";
+        tr.onclick = () => abrirFichaToro(toro);
+        tr.innerHTML = `
+          <th class="p-2.5 sm:p-3 font-bold text-blue-900 whitespace-nowrap">${toro.rp || "-"}</th>
+          <td class="p-2.5 sm:p-3 font-semibold min-w-[120px] sm:min-w-0">${toro.nombre || "-"}</td>
+          <td class="p-2.5 sm:p-3 text-gray-600 whitespace-nowrap">${toro.hba || "-"}</td>
+          <td class="p-2.5 sm:p-3 text-gray-800 font-bold whitespace-nowrap">${toro.circunferencia_escrotal || toro.ce ? (toro.circunferencia_escrotal || toro.ce) + " cm" : "No reg."}</td>
+          <td class="p-2.5 sm:p-3 whitespace-nowrap"><span class="bg-blue-100 text-blue-800 text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-bold">${toro.tipo || "Toro Reproductor"}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function filtrarToros() {
+      const inputBT = document.getElementById("input-buscar-toro");
+      if (!inputBT) return;
+      const query = inputBT.value.trim().toLowerCase();
+      if (!query) {
+        renderizarToros(ganadoMemoria);
+        return;
+      }
+      const filtrados = ganadoMemoria.filter(a => {
+        if (!esToroReproductor(a)) return false;
+        const rp = String(a.rp || "").toLowerCase();
+        const nombre = String(a.nombre || "").toLowerCase();
+        const hba = String(a.hba || "").toLowerCase();
+        return rp.includes(query) || nombre.includes(query) || hba.includes(query);
+      });
+      renderizarToros(filtrados);
+    }
+
+    async function abrirFichaToro(toro) {
+      toroActual = toro;
+      document.getElementById("toro-rp").innerText = toro.rp || "-";
+      document.getElementById("toro-nombre").innerText = toro.nombre || "Sin nombre";
+      document.getElementById("toro-hba").innerText = toro.hba || "-";
+      document.getElementById("toro-ce").innerText = (toro.circunferencia_escrotal || toro.ce ? (toro.circunferencia_escrotal || toro.ce) + " cm" : "-");
+      
+      document.getElementById("toro-frame").innerText = toro.frame || "-";
+      document.getElementById("toro-fnac").innerText = toro.fecha_nacimiento || "-";
+      document.getElementById("toro-pnacer").innerText = toro.peso_nacer ? toro.peso_nacer + " kg" : "-";
+      document.getElementById("toro-p205d").innerText = toro.peso_205d ? toro.peso_205d + " kg" : "-";
+      document.getElementById("toro-pano").innerText = toro.peso_ano ? toro.peso_ano + " kg" : "-";
+      document.getElementById("toro-pmaduro").innerText = toro.peso_maduro ? toro.peso_maduro + " kg" : "-";
+      document.getElementById("toro-pedigree").innerText = toro.pedigree || "No registrado";
+      document.getElementById("toro-criador").innerText = toro.criador || "-";
+      document.getElementById("toro-propietario").innerText = toro.propietario || "-";
+
+      const contenedorPadres = document.getElementById("toro-padres-container");
+
+      if (toro.es_propio) {
+        contenedorPadres.classList.remove("hidden");
+
+        const nombrePadre = toro.padre || toro.nombre_padre || "No registrado";
+        const nombreMadre = toro.madre || toro.nombre_madre || "No registrada";
+
+        document.getElementById("toro-padre-nom").innerText = nombrePadre;
+        document.getElementById("toro-madre-nom").innerText = nombreMadre;
+
+        const boxPadre = document.getElementById("toro-box-padre");
+        const txtPadreRp = document.getElementById("toro-padre-rp");
+        const boxMadre = document.getElementById("toro-box-madre");
+        const txtMadreRp = document.getElementById("toro-madre-rp");
+
+        const padreEncontrado = buscarAnimalPorTermino(nombrePadre, true) || buscarAnimalPorTermino(toro.rp_padre, true);
+        if (padreEncontrado) {
+          txtPadreRp.innerText = `RP: ${padreEncontrado.rp || 'N/D'}`;
+          boxPadre.onclick = () => abrirFichaToro(padreEncontrado);
+          boxPadre.className = "bg-blue-50 p-2.5 rounded-xl border border-blue-100 transition-colors cursor-pointer hover:bg-blue-100";
+        } else {
+          txtPadreRp.innerText = toro.rp_padre ? `RP: ${toro.rp_padre}` : "";
+          boxPadre.onclick = null;
+          boxPadre.className = "bg-blue-50 p-2.5 rounded-xl border border-blue-100 transition-colors";
+        }
+
+        const madreEncontrada = buscarAnimalPorTermino(nombreMadre, false) || buscarAnimalPorTermino(toro.rp_madre, false);
+        if (madreEncontrada) {
+          txtMadreRp.innerText = `RP: ${madreEncontrada.rp || 'N/D'}`;
+          boxMadre.onclick = () => {
+            cerrarFichaToro();
+            abrirFichaAnimal(madreEncontrada);
+          };
+          boxMadre.className = "bg-pink-50 p-2.5 rounded-xl border border-pink-100 transition-colors cursor-pointer hover:bg-pink-100";
+        } else {
+          txtMadreRp.innerText = toro.rp_madre ? `RP: ${toro.rp_madre}` : "";
+          boxMadre.onclick = null;
+          boxMadre.className = "bg-pink-50 p-2.5 rounded-xl border border-pink-100 transition-colors";
+        }
+      } else {
+        contenedorPadres.classList.add("hidden");
+      }
+
+      const contenedorDeps = document.getElementById("contenedor-deps-era");
+      if (toro.deps) {
+        document.getElementById("era-fecha").innerText = toro.era_evaluacion || "Septiembre/2026";
+        const keys = ["gest", "nacer", "dest", "leche", "final", "ce", "altura", "egd", "egc", "aob", "gi", "cm"];
+        keys.forEach(k => {
+          const dObj = toro.deps[k] || { dep: "-", prec: "-", percen: "-" };
+          const elDep = document.getElementById(`dep-${k}`);
+          const elPrec = document.getElementById(`prec-${k}`);
+          const elPerc = document.getElementById(`perc-${k}`);
+          if (elDep) elDep.innerText = dObj.dep;
+          if (elPrec) elPrec.innerText = dObj.prec;
+          if (elPerc) elPerc.innerText = dObj.percen;
+        });
+        if (contenedorDeps) contenedorDeps.classList.remove("hidden");
+      } else {
+        if (contenedorDeps) contenedorDeps.classList.add("hidden");
+      }
+
+      const img = document.getElementById("toro-img");
+      const placeholder = document.getElementById("toro-foto-placeholder");
+      
+      const rpIdentificador = toro.rp || toro.id;
+      let photoUrl = localStorage.getItem(`toro_foto_${rpIdentificador}`);
+
+      if (!photoUrl && typeof supabaseClient !== 'undefined') {
+        const { data: publicUrlData } = supabaseClient.storage.from('fotos-ganado').getPublicUrl(`perfil_toro_${rpIdentificador}.jpg`);
+        if (publicUrlData && publicUrlData.publicUrl) photoUrl = publicUrlData.publicUrl;
+      }
+
+      if (photoUrl && img && placeholder) {
+        img.src = photoUrl;
+        img.classList.remove("hidden");
+        placeholder.classList.add("hidden");
+      } else if (img && placeholder) {
+        img.classList.add("hidden");
+        placeholder.classList.remove("hidden");
+      }
+
+      renderGaleriaToroSupabase();
+      renderServiciosToro();
+      document.getElementById("modal-toro").classList.remove("hidden");
+    }
+
+    function cerrarFichaToro() {
+      document.getElementById("modal-toro").classList.add("hidden");
+      toroActual = null;
+    }
+
+    async function guardarFotoToroSupabase(event) {
+      const file = event.target.files[0];
+      if (!file || !toroActual) return;
+      const rp = toroActual.rp || toroActual.id;
+
+      if (typeof supabaseClient !== 'undefined') {
+        try {
+          const fileName = `perfil_toro_${rp}.jpg`;
+          await supabaseClient.storage.from('fotos-ganado').upload(fileName, file, { upsert: true });
+          const { data } = supabaseClient.storage.from('fotos-ganado').getPublicUrl(fileName);
+          if (data && data.publicUrl) {
+            localStorage.setItem(`toro_foto_${rp}`, data.publicUrl);
+            const img = document.getElementById("toro-img");
+            const placeholder = document.getElementById("toro-foto-placeholder");
+            if (img && placeholder) {
+              img.src = data.publicUrl + '?t=' + Date.now();
+              img.classList.remove("hidden");
+              placeholder.classList.add("hidden");
+            }
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+
+    async function subirMultimediaSupabase(event) {
+      const files = event.target.files;
+      if (!files || !files.length || !animalActual) return;
+
+      if (typeof supabaseClient === 'undefined') {
+        alert("Error: Supabase no está inicializado.");
+        return;
+      }
+
+      const rp = animalActual.rp || animalActual.id;
+      const container = document.getElementById("ficha-galeria");
+      if (container) container.innerHTML = `<p class="text-xs text-blue-600 col-span-4 font-bold animate-pulse">⬆️ Subiendo archivos a Supabase...</p>`;
+
+      for (let file of files) {
+        const timestamp = Date.now();
+        const fileName = `galeria_${rp}_${timestamp}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
+
+        try {
+          await supabaseClient.storage
+            .from('fotos-ganado')
+            .upload(fileName, file);
+        } catch (err) {
+          console.error("Error al subir archivo:", err);
+        }
+      }
+
+      renderGaleriaFotosSupabase();
+      if (event.target) event.target.value = "";
+    }
+
+    async function renderGaleriaFotosSupabase() {
+      if (!animalActual) return;
+      const container = document.getElementById("ficha-galeria");
+      if (!container) return;  
+      const rp = animalActual.rp || animalActual.id;
+
+      if (typeof supabaseClient === 'undefined') {
+        container.innerHTML = `<p class="text-xs text-gray-400 col-span-4">Supabase no disponible.</p>`;
+        return;
+      }
+
+      try {
+        const { data, error } = await supabaseClient.storage
+          .from('fotos-ganado')
+          .list('', { search: `galeria_${rp}_` });
+
+        if (error || !data || data.length === 0) {
+          container.innerHTML = `<p class="text-xs text-gray-400 col-span-4">No hay fotos o videos en Supabase para este animal.</p>`;
+          visorFotosActuales = [];
+          return;
+        }
+
+        visorFotosActuales = data.map(item => {
+          const { data: publicUrlData } = supabaseClient.storage
+            .from('fotos-ganado')
+            .getPublicUrl(item.name);
+          
+          const esVideo = item.name.match(/\.(mp4|mov|avi|mkv|webm)$/i);
+          return {
+            url: publicUrlData.publicUrl,
+            tipo: esVideo ? 'video' : 'imagen',
+            nombre: item.name
+          };
+        });
+
+        container.innerHTML = visorFotosActuales.map((item, index) => {
+          const esVideo = item.tipo === 'video';
+          let contenidoVisual = esVideo 
+            ? `<video src="${item.url}" class="w-full h-full object-cover pointer-events-none"></video><div class="absolute inset-0 flex items-center justify-center bg-black/40"><span class="text-white text-[10px] font-bold bg-black/60 px-1 py-0.5 rounded">▶ Video</span></div>`
+            : `<img src="${item.url}" class="w-full h-full object-cover">`;
+
+          return `
+            <div class="relative group w-full h-14 sm:h-16 bg-gray-100 rounded-lg overflow-hidden border cursor-pointer" onclick="abrirVisorGaleria(${index})">
+              ${contenidoVisual}
+            </div>
+          `;
+        }).join("");
+
+      } catch (err) {
+        console.error("Error listando archivos:", err);
+        container.innerHTML = `<p class="text-xs text-red-500 col-span-4">Error al conectar con Supabase.</p>`;
+      }
+    }
+
+    async function subirMultimediaToroSupabase(event) {
+      const files = event.target.files;
+      if (!files || !files.length || !toroActual) return;
+
+      if (typeof supabaseClient === 'undefined') {
+        alert("Error: Supabase no está inicializado.");
+        return;
+      }
+
+      const rp = toroActual.rp || toroActual.id;
+      const container = document.getElementById("toro-galeria");
+      if (container) container.innerHTML = `<p class="text-xs text-blue-600 col-span-4 font-bold animate-pulse">⬆️ Subiendo archivos a Supabase...</p>`;
+
+      for (let file of files) {
+        const timestamp = Date.now();
+        const fileName = `galeria_toro_${rp}_${timestamp}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
+
+        try {
+          await supabaseClient.storage
+            .from('fotos-ganado')
+            .upload(fileName, file);
+        } catch (err) {
+          console.error("Excepción al subir toro:", err);
+        }
+      }
+
+      renderGaleriaToroSupabase();
+      if (event.target) event.target.value = "";
+    }
+
+    async function renderGaleriaToroSupabase() {
+      if (!toroActual) return;
+      const container = document.getElementById("toro-galeria");
+      if (!container) return;  
+      const rp = toroActual.rp || toroActual.id;
+
+      if (typeof supabaseClient === 'undefined') return;
+
+      try {
+        const { data, error } = await supabaseClient.storage
+          .from('fotos-ganado')
+          .list('', { search: `galeria_toro_${rp}_` });
+
+        if (error || !data || data.length === 0) {
+          container.innerHTML = `<p class="text-xs text-gray-400 col-span-4">No hay fotos o videos en Supabase para este toro.</p>`;
+          visorFotosActuales = [];
+          return;
+        }
+
+        visorFotosActuales = data.map(item => {
+          const { data: publicUrlData } = supabaseClient.storage
+            .from('fotos-ganado')
+            .getPublicUrl(item.name);
+          
+          const esVideo = item.name.match(/\.(mp4|mov|avi|mkv|webm)$/i);
+          return {
+            url: publicUrlData.publicUrl,
+            tipo: esVideo ? 'video' : 'imagen',
+            nombre: item.name
+          };
+        });
+
+        container.innerHTML = visorFotosActuales.map((item, index) => {
+          const esVideo = item.tipo === 'video';
+          let contenidoVisual = esVideo 
+            ? `<video src="${item.url}" class="w-full h-full object-cover pointer-events-none"></video><div class="absolute inset-0 flex items-center justify-center bg-black/40"><span class="text-white text-[10px] font-bold bg-black/60 px-1 py-0.5 rounded">▶ Video</span></div>`
+            : `<img src="${item.url}" class="w-full h-full object-cover">`;
+
+          return `
+            <div class="relative group w-full h-14 sm:h-16 bg-gray-100 rounded-lg overflow-hidden border cursor-pointer" onclick="abrirVisorGaleria(${index})">
+              ${contenidoVisual}
+            </div>
+          `;
+        }).join("");
+
+      } catch (err) {
+        console.error("Error listando archivos de toro:", err);
+      }
+    }
+
+    function abrirVisorFotoPrincipal() {
+      const img = document.getElementById("ficha-img");
+      if (!img || img.classList.contains("hidden") || !img.src) return;
+      
+      visorFotosActuales = [{ url: img.src, tipo: 'imagen' }];
+      visorIndiceActual = 0;
+      mostrarVisorActual();
+    }
+
+    function abrirVisorFotoToroPrincipal() {
+      const img = document.getElementById("toro-img");
+      if (!img || img.classList.contains("hidden") || !img.src) return;
+      
+      visorFotosActuales = [{ url: img.src, tipo: 'imagen' }];
+      visorIndiceActual = 0;
+      mostrarVisorActual();
+    }
+
+    function abrirVisorGaleria(index) {
+      visorIndiceActual = index;
+      mostrarVisorActual();
+    }
+
+    function mostrarVisorActual() {
+      if (!visorFotosActuales || visorFotosActuales.length === 0) return;
+      
+      const itemActual = visorFotosActuales[visorIndiceActual];
+      const urlArchivo = itemActual.url;
+      const esVideo = itemActual.tipo === 'video';
+
+      let elementoVisual = document.getElementById("visor-img-grande");
+      
+      if (esVideo) {
+        if (!elementoVisual || elementoVisual.tagName !== "VIDEO") {
+          const nuevoVideo = document.createElement("video");
+          nuevoVideo.id = "visor-img-grande";
+          nuevoVideo.controls = true;
+          nuevoVideo.autoplay = true;
+          nuevoVideo.className = "max-h-[80vh] max-w-full object-contain rounded-lg";
+          if (elementoVisual) elementoVisual.replaceWith(nuevoVideo);
+          elementoVisual = nuevoVideo;
+        }
+        elementoVisual.src = urlArchivo;
+      } else {
+        if (!elementoVisual || elementoVisual.tagName !== "IMG") {
+          const nuevaImg = document.createElement("img");
+          nuevaImg.id = "visor-img-grande";
+          nuevaImg.className = "max-h-[80vh] max-w-full object-contain rounded-lg";
+          if (elementoVisual) elementoVisual.replaceWith(nuevaImg);
+          elementoVisual = nuevaImg;
+        }
+        elementoVisual.src = urlArchivo;
+      }
+
+      const indicador = document.getElementById("visor-indicador");
+      const btnPrev = document.getElementById("btn-visor-prev");
+      const btnNext = document.getElementById("btn-visor-next");
+
+      if (visorFotosActuales.length > 1) {
+        if (indicador) {
+          indicador.innerText = `Archivo ${visorIndiceActual + 1} de ${visorFotosActuales.length}`;
+          indicador.classList.remove("hidden");
+        }
+        if (btnPrev) btnPrev.classList.remove("hidden");
+        if (btnNext) btnNext.classList.remove("hidden");
+      } else {
+        if (indicador) indicador.classList.add("hidden");
+        if (btnPrev) btnPrev.classList.add("hidden");
+        if (btnNext) btnNext.classList.add("hidden");
+      }
+
+      const modalVisor = document.getElementById("modal-visor-foto");
+      if (modalVisor) modalVisor.classList.remove("hidden");
+    }
+
+    function cambiarFotoVisor(direccion) {
+      if (visorFotosActuales.length <= 1) return;
+      visorIndiceActual += direccion;
+      if (visorIndiceActual < 0) visorIndiceActual = visorFotosActuales.length - 1;
+      if (visorIndiceActual >= visorFotosActuales.length) visorIndiceActual = 0;
+      mostrarVisorActual();
+    }
+
+    function cerrarVisorFoto() {
+      const visor = document.getElementById("visor-img-grande");
+      if (visor && visor.tagName === "VIDEO") {
+        visor.pause();
+        visor.src = "";
+      }
+      const modalVisor = document.getElementById("modal-visor-foto");
+      if (modalVisor) modalVisor.classList.add("hidden");
+    }
+
+    function buscarAnimalPorTermino(termino, esBuscandoPadre = false) {
+      if (!termino) return null;
+      const t = String(termino).toLowerCase().trim();
+      if (t === "no registrado" || t === "no registrada" || t === "-") return null;
+
+      let candidatos = ganadoMemoria;
+
+      if (esBuscandoPadre) {
+        candidatos = ganadoMemoria.filter(a => esToroReproductor(a));
+      } else {
+        candidatos = ganadoMemoria.filter(a => !esToroReproductor(a));
+      }
+
+      let encontrado = candidatos.find(a => a.rp && String(a.rp).toLowerCase() === t);
+      if (encontrado) return encontrado;
+
+      encontrado = candidatos.find(a => a.nombre && String(a.nombre).toLowerCase() === t);
+      if (encontrado) return encontrado;
+
+      encontrado = candidatos.find(a => {
+        const rpA = a.rp ? String(a.rp).toLowerCase() : "";
+        const nomA = a.nombre ? String(a.nombre).toLowerCase() : "";
+        return (nomA && (t.includes(nomA) || nomA.includes(t))) || (rpA && (t.includes(rpA) || rpA.includes(t)));
+      });
+
+      return encontrado || null;
+    }
+
+    async function abrirFichaAnimal(animal) {
+      animalActual = animal;
+      document.getElementById("ficha-rp").innerText = animal.rp || "-";
+      document.getElementById("ficha-nombre").innerText = animal.nombre || "Sin nombre";
+      document.getElementById("ficha-hba").innerText = animal.hba || "-";
+      
+      const nombrePadre = animal.padre || animal.nombre_padre || "No registrado";
+      const nombreMadre = animal.madre || animal.nombre_madre || "No registrada";
+      
+      document.getElementById("ficha-padre").innerText = nombrePadre;
+      document.getElementById("ficha-madre").innerText = nombreMadre;
+      document.getElementById("ficha-tipo").innerText = animal.tipo || "Propio";
+
+      const boxPadre = document.getElementById("box-padre");
+      const txtPadreRp = document.getElementById("ficha-padre-rp");
+      const padreEncontrado = buscarAnimalPorTermino(nombrePadre, true) || buscarAnimalPorTermino(animal.rp_padre, true);
+      
+      if (padreEncontrado) {
+        txtPadreRp.innerText = `RP: ${padreEncontrado.rp || 'N/D'}`;
+        boxPadre.onclick = () => {
+          cerrarFichaAnimal();
+          abrirFichaToro(padreEncontrado);
+        };
+        boxPadre.classList.add("cursor-pointer", "hover:bg-blue-100");
+      } else {
+        txtPadreRp.innerText = animal.rp_padre ? `RP: ${animal.rp_padre}` : "";
+        boxPadre.onclick = null;
+        boxPadre.classList.remove("cursor-pointer", "hover:bg-blue-100");
+      }
+
+      const boxMadre = document.getElementById("box-madre");
+      const txtMadreRp = document.getElementById("ficha-madre-rp");
+      const madreEncontrada = buscarAnimalPorTermino(nombreMadre, false) || buscarAnimalPorTermino(animal.rp_madre, false);
+      
+      if (madreEncontrada) {
+        txtMadreRp.innerText = `RP: ${madreEncontrada.rp || 'N/D'}`;
+        boxMadre.onclick = () => abrirFichaAnimal(madreEncontrada);
+        boxMadre.classList.add("cursor-pointer", "hover:bg-pink-100");
+      } else {
+        txtMadreRp.innerText = animal.rp_madre ? `RP: ${animal.rp_madre}` : "";
+        boxMadre.onclick = null;
+        boxMadre.classList.remove("cursor-pointer", "hover:bg-pink-100");
+      }
+
+      const img = document.getElementById("ficha-img");
+      const placeholder = document.getElementById("ficha-foto-placeholder");
+      
+      const rpIdentificador = animal.rp || animal.id;
+      let photoUrl = localStorage.getItem(`foto_${rpIdentificador}`);
+
+      if (!photoUrl && typeof supabaseClient !== 'undefined') {
+        const { data: publicUrlData } = supabaseClient.storage.from('fotos-ganado').getPublicUrl(`perfil_${rpIdentificador}.jpg`);
+        if (publicUrlData && publicUrlData.publicUrl) photoUrl = publicUrlData.publicUrl;
+      }
+
+      if (photoUrl && img && placeholder) {
+        img.src = photoUrl;
+        img.classList.remove("hidden");
+        placeholder.classList.add("hidden");
+      } else if (img && placeholder) {
+        img.classList.add("hidden");
+        placeholder.classList.remove("hidden");
+      }
+
+      renderGaleriaFotosSupabase();
+      renderCrias();
+      document.getElementById("modal-animal").classList.remove("hidden");
+    }
+
+    function cerrarFichaAnimal() {
+      document.getElementById("modal-animal").classList.add("hidden");
+      animalActual = null;
+    }
+
+    async function guardarFotoAnimalSupabase(event) {
+      const file = event.target.files[0];
+      if (!file || !animalActual) return;
+      const rp = animalActual.rp || animalActual.id;
+
+      if (typeof supabaseClient !== 'undefined') {
+        try {
+          const fileName = `perfil_${rp}.jpg`;
+          await supabaseClient.storage.from('fotos-ganado').upload(fileName, file, { upsert: true });
+          const { data } = supabaseClient.storage.from('fotos-ganado').getPublicUrl(fileName);
+          if (data && data.publicUrl) {
+            localStorage.setItem(`foto_${rp}`, data.publicUrl);
+            const img = document.getElementById("ficha-img");
+            const placeholder = document.getElementById("ficha-foto-placeholder");
+            if (img && placeholder) {
+              img.src = data.publicUrl + '?t=' + Date.now();
+              img.classList.remove("hidden");
+              placeholder.classList.add("hidden");
+            }
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+
+    function agregarCria() {
+      const inputCria = document.getElementById("nueva-cria-rp");
+      if (!inputCria || !animalActual) return;
+      const criaRp = inputCria.value.trim();
+      if (!criaRp) return;
+      
+      let crias = JSON.parse(localStorage.getItem(`crias_${animalActual.id || animalActual.rp}`) || "[]");
+      if (!crias.includes(criaRp)) {
+        crias.push(criaRp);
+        localStorage.setItem(`crias_${animalActual.id || animalActual.rp}`, JSON.stringify(crias));
+      }
+      
+      inputCria.value = "";
+      renderCrias();
+    }
+
+    function renderCrias() {
+      if (!animalActual) return;
+      const container = document.getElementById("ficha-crias-lista");
+      if (!container) return;
+
+      let crias = JSON.parse(localStorage.getItem(`crias_${animalActual.id || animalActual.rp}`) || "[]");
+      if (crias.length === 0) {
+        container.innerHTML = `<p class="text-gray-500">No hay crías registradas.</p>`;
+        return;
+      }
+
+      container.innerHTML = crias.map(c => {
+        const animalCria = ganadoMemoria.find(a => a.rp && String(a.rp).toLowerCase() === String(c).toLowerCase());
+        
+        if (animalCria) {
+          return `
+            <div onclick='abrirFichaAnimal(${JSON.stringify(animalCria).replace(/'/g, "&#39;")})' class="bg-white p-2 rounded-lg border border-green-200 flex justify-between items-center cursor-pointer hover:bg-green-50 transition-colors shadow-sm">
+              <div>
+                <span class="font-extrabold text-green-900">RP: ${animalCria.rp}</span>
+                <span class="text-xs text-gray-700 ml-1.5">(${animalCria.nombre || 'Sin nombre'})</span>
+              </div>
+              <span class="text-[10px] text-blue-700 font-bold">Ver ➔</span>
+            </div>`;
+        } else {
+          return `
+            <div class="bg-white p-2 rounded-lg border flex justify-between items-center shadow-sm">
+              <div>
+                <span class="font-bold text-gray-800">Cría RP: ${c}</span>
+                <span class="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-semibold ml-2">Pendiente</span>
+              </div>
+            </div>`;
+        }
+      }).join("");
+    }
+
+    function renderServiciosToro() {
+      if (!toroActual) return;
+      const container = document.getElementById("toro-servicios-lista");
+      if (!container) return;
+      
+      const nombreToro = (toroActual.nombre || "").toLowerCase().trim();
+      const rpToro = String(toroActual.rp || "").toLowerCase().trim();
+
+      const serviciosToro = serviciosMemoria.filter(s => {
+        const tS = String(s.toro_utilizado || "").toLowerCase().trim();
+        if (!tS) return false;
+        return (nombreToro && (nombreToro.includes(tS) || tS.includes(nombreToro))) || 
+               (rpToro && (rpToro.includes(tS) || tS.includes(rpToro)));
+      });
+
+      if (serviciosToro.length === 0) {
+        container.innerHTML = `<p class="text-gray-500">No hay servicios registrados.</p>`;
+        return;
+      }
+
+      container.innerHTML = serviciosToro.map(s => {
+        const rpVaca = s.rp !== undefined ? s.rp : s.vaca_rp;
+        return `
+          <div class="bg-white p-2 rounded border flex justify-between items-center shadow-sm">
+            <div>
+              <span class="font-bold text-gray-800">Vaca RP: ${rpVaca || 'N/D'}</span>
+              <span class="text-[10px] text-gray-500 ml-2">F: ${s.fecha_servicio || '-'}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold">FPP: ${s.fecha_parto_estimada || '-'}</span>
+              <button onclick="eliminarServicio('${s.id}')" class="text-red-500 hover:text-red-700 font-bold text-xs p-1" title="Eliminar servicio">🗑️</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function actualizarFPP() {
+      const inputFecha = document.getElementById("srv-fecha");
+      const divFPP = document.getElementById("srv-fpp");
+      if (!inputFecha || !divFPP) return;
+      let f = inputFecha.value || new Date().toISOString().split("T")[0];
+      const d = new Date(f + "T00:00:00");
+      d.setDate(d.getDate() + 283);
+      divFPP.innerText = d.toISOString().split("T")[0];
+    }
+
+    async function guardarServicio(e) {
+      e.preventDefault();
+      
+      const searchInputVal = document.getElementById("srv-vaca-search").value.trim();
+      let animalId = document.getElementById("srv-vaca-id").value;
+      let vacaRp = document.getElementById("srv-vaca-sel").getAttribute("data-rp");
+
+      if (!animalId && searchInputVal) {
+        const animalEncontrado = ganadoMemoria.find(a => String(a.rp).toLowerCase() === searchInputVal.toLowerCase() || String(a.nombre).toLowerCase() === searchInputVal.toLowerCase());
+        if (animalEncontrado) {
+          animalId = animalEncontrado.id || animalEncontrado.rp;
+          vacaRp = animalEncontrado.rp;
+        } else {
+          vacaRp = searchInputVal;
+          animalId = searchInputVal;
+        }
+      }
+
+      if (!vacaRp) {
+        return alert("Por favor seleccioná o ingresá un RP de vaca válido.");
+      }
+
+      let fechaServ = document.getElementById("srv-fecha").value || new Date().toISOString().split("T")[0];
+      const fpp = calcularFPPStr(fechaServ);
+
+      const servicio = {
+        id: crypto.randomUUID(),
+        animal_id: animalId,
+        rp: isNaN(vacaRp) ? vacaRp : Number(vacaRp),
+        fecha_servicio: fechaServ,
+        fecha_parto_estimada: fpp,
+        tipo_servicio: document.getElementById("srv-tipo").value,
+        toro_utilizado: document.getElementById("srv-toro").value,
+        estado: "pendiente"
+      };
+
+      if (typeof supabaseClient !== 'undefined') {
+        try {
+          const { error } = await supabaseClient.from('servicios').insert([servicio]);
+          if (error) {
+            console.error("Error al guardar en Supabase:", error);
+            alert("⚠️ Error al sincronizar con Supabase: " + error.message);
+          }
+        } catch (err) {
+          console.error("Excepción Supabase:", err);
+        }
+      }
+
+      await recargarServiciosDesdeSupa();
+
+      alert("✅ Servicio guardado con éxito.");
+      document.getElementById("form-servicio").reset();
+      actualizarFPP();
+      document.getElementById("srv-vaca-sel").innerText = "";
+      document.getElementById("srv-vaca-id").value = "";
+      if (toroActual) renderServiciosToro();
+    }
+
+    async function eliminarServicio(idServicio) {
+      if (!confirm("¿Estás seguro de que deseas eliminar este servicio?")) return;
+
+      if (typeof supabaseClient !== 'undefined') {
+        try {
+          await supabaseClient.from('servicios').delete().eq('id', idServicio);
+        } catch (err) {
+          console.error("Error al eliminar de Supabase:", err);
+        }
+      }
+
+      await recargarServiciosDesdeSupa();
+      if (toroActual) renderServiciosToro();
+    }
+
+    function calcularFPPStr(fStr) {
+      const d = new Date(fStr + "T00:00:00");
+      d.setDate(d.getDate() + 283);
+      return d.toISOString().split("T")[0];
+    }
+
+    function buscarVacaParaServicio() {
+      const inputSearch = document.getElementById("srv-vaca-search");
+      const res = document.getElementById("srv-vaca-results");
+      if (!inputSearch || !res) return;
+      const q = inputSearch.value.toLowerCase().trim();
+      if (!q) return res.classList.add("hidden");
+
+      const matches = ganadoMemoria.filter(a => {
+        if (esToroReproductor(a)) return false;
+        const rp = a.rp ? String(a.rp).toLowerCase() : "";
+        const nombre = a.nombre ? String(a.nombre).toLowerCase() : "";
+        return rp.includes(q) || nombre.includes(q);
+      }).slice(0, 5);
+
+      if (matches.length === 0) {
+        res.innerHTML = `<div class="p-2 text-xs text-gray-500">No se encontraron animales.</div>`;
+        res.classList.remove("hidden");
+        return;
+      }
+
+      res.innerHTML = matches.map(a => `
+        <div onclick="seleccionarVaca('${a.id || a.rp}', '${a.rp}', '${a.nombre || ''}')" class="p-2 hover:bg-gray-100 cursor-pointer text-xs font-semibold flex justify-between">
+          <span>RP: ${a.rp}</span>
+          <span class="text-gray-500">${a.nombre || ''}</span>
+        </div>
+      `).join("");
+      res.classList.remove("hidden");
+    }
+
+    function seleccionarVaca(id, rp, nombre) {
+      document.getElementById("srv-vaca-id").value = id;
+      const selEl = document.getElementById("srv-vaca-sel");
+      selEl.innerText = `Seleccionada: RP ${rp} ${nombre}`;
+      selEl.setAttribute("data-rp", rp);
+      selEl.setAttribute("data-nombre", nombre);
+      document.getElementById("srv-vaca-results").classList.add("hidden");
+      document.getElementById("srv-vaca-search").value = rp;
+    }
+
+    function renderizarServicios(lista) {
+      const contenedor = document.getElementById("contenedor-servicios");
+      if (!contenedor) return;
+      if (!lista || lista.length === 0) {
+        contenedor.innerHTML = `<p class="text-xs text-gray-500 col-span-2 text-center py-4 bg-white rounded-xl shadow-sm">No hay servicios registrados.</p>`;
+        return;
+      }
+      contenedor.innerHTML = lista.map(s => {
+        const rpVaca = s.rp !== undefined ? s.rp : s.vaca_rp;
+        const animalVaca = ganadoMemoria.find(a => String(a.rp).toLowerCase() === String(rpVaca).toLowerCase());
+        const nombreVacaStr = animalVaca && animalVaca.nombre ? ` (${animalVaca.nombre})` : '';
+
+        return `
+          <div class="p-3.5 rounded-xl border-l-4 shadow-sm bg-white border-l-blue-500 flex justify-between items-start">
+            <div>
+              <h4 class="font-bold text-gray-900 text-xs sm:text-sm">Vaca RP: ${rpVaca || 'N/D'}${nombreVacaStr}</h4>
+              <p class="text-xs text-gray-600">Toro: ${s.toro_utilizado || '-'}</p>
+              <p class="text-xs text-blue-700 font-bold mt-1">FPP: ${s.fecha_parto_estimada || '-'} <span class="text-gray-400 font-normal text-[10px] ml-1">(Servicio: ${s.fecha_servicio || '-'})</span></p>
+            </div>
+            <button onclick="eliminarServicio('${s.id}')" class="text-red-500 hover:text-red-700 p-1 font-bold text-sm" title="Eliminar servicio">
+              🗑️
+            </button>
+          </div>
+        `;
+      }).join("");
+    }
+
+    /* --- ÁRBOL GENEALÓGICO --- */
+    function buscarAnimalArbol() {
+      const input = document.getElementById("arbol-search");
+      const res = document.getElementById("arbol-results");
+      const card = document.getElementById("arbol-card");
+      if (!input || !res) return;
+
+      const q = input.value.trim().toLowerCase();
+      if (!q) {
+        res.classList.add("hidden");
+        if (card) card.classList.add("hidden");
+        return;
+      }
+
+      const matches = ganadoMemoria.filter(a => {
+        const rp = String(a.rp || "").toLowerCase();
+        const nombre = String(a.nombre || "").toLowerCase();
+        return rp.includes(q) || nombre.includes(q);
+      }).slice(0, 6);
+
+      if (matches.length === 0) {
+        res.innerHTML = `<div class="p-3 text-xs text-gray-500">No se encontró ningún animal con ese RP o Nombre.</div>`;
+      } else {
+        res.innerHTML = matches.map(a => `
+          <div onclick='seleccionarAnimalArbol(${JSON.stringify(a).replace(/'/g, "&#39;")})' class="p-2.5 hover:bg-green-50 cursor-pointer text-xs flex justify-between items-center border-b last:border-0">
+            <div>
+              <span class="font-bold text-gray-900">RP: ${a.rp || '-'}</span>
+              <span class="text-gray-600 ml-1.5">${a.nombre || ''}</span>
+            </div>
+            <span class="text-[10px] bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-bold">${a.tipo || (esToroReproductor(a) ? 'Toro' : 'Vientre')}</span>
+          </div>
+        `).join("");
+      }
+      res.classList.remove("hidden");
+    }
+
+    function seleccionarAnimalArbol(animal) {
+      document.getElementById("arbol-results").classList.add("hidden");
+      document.getElementById("arbol-search").value = `RP: ${animal.rp || ''} - ${animal.nombre || ''}`;
+
+      const card = document.getElementById("arbol-card");
+      document.getElementById("arb-nombre").innerText = animal.nombre || "Sin Nombre";
+      document.getElementById("arb-sub").innerText = `RP: ${animal.rp || '-'} | HBA: ${animal.hba || '-'}`;
+
+      document.getElementById("arb-padre-nom").innerText = animal.padre || animal.nombre_padre || "No registrado";
+      document.getElementById("arb-padre-rp").innerText = animal.rp_padre ? `RP: ${animal.rp_padre}` : "";
+
+      document.getElementById("arb-madre-nom").innerText = animal.madre || animal.nombre_madre || "No registrada";
+      document.getElementById("arb-madre-rp").innerText = animal.rp_madre ? `RP: ${animal.rp_madre}` : "";
+
+      card.classList.remove("hidden");
+    }
+  </script>
+</body>
+</html>
