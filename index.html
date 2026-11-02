@@ -195,6 +195,65 @@
     </section>
   </main>
 
+  <!-- MODAL EDITAR NACIMIENTO -->
+  <div id="modal-editar-nacimiento" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl relative">
+      <button onclick="cerrarModalEditarNacimiento()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 font-bold text-xl p-1">✕</button>
+      <h2 class="text-base font-bold text-gray-900 border-b pb-2">✏️ Editar Registro de Nacimiento</h2>
+      
+      <form id="form-editar-nacimiento" onsubmit="guardarEdicionNacimiento(event)" class="space-y-3">
+        <input type="hidden" id="edit-nac-id">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Fecha Nacimiento:</label>
+            <input type="date" id="edit-nac-fecha" class="w-full p-2 text-xs border rounded-lg">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">RP Cría:</label>
+            <input type="text" id="edit-nac-rpcria" class="w-full p-2 text-xs border rounded-lg" placeholder="Ej: 801">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Sexo:</label>
+            <select id="edit-nac-sexo" class="w-full p-2 text-xs border rounded-lg bg-white">
+              <option value="M">Macho 🐂</option>
+              <option value="F">Hembra 🐄</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">RP Madre:</label>
+            <input type="text" id="edit-nac-vaca" class="w-full p-2 text-xs border rounded-lg">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Fecha Servicio:</label>
+            <input type="date" id="edit-nac-fechaserv" class="w-full p-2 text-xs border rounded-lg">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Peso al Nacer (kg):</label>
+            <input type="number" step="0.1" id="edit-nac-peso" class="w-full p-2 text-xs border rounded-lg" placeholder="Ej: 34">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Nombre del Padre / Toro:</label>
+          <input type="text" id="edit-nac-toronom" class="w-full p-2 text-xs border rounded-lg">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">HBA Padre:</label>
+          <input type="text" id="edit-nac-torohba" class="w-full p-2 text-xs border rounded-lg">
+        </div>
+
+        <button type="submit" class="w-full bg-green-700 text-white font-bold p-2.5 rounded-lg hover:bg-green-800 text-xs">Guardar Cambios</button>
+      </form>
+    </div>
+  </div>
+
   <!-- MODAL FICHA ANIMAL -->
   <div id="modal-animal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-3 sm:p-4">
     <div class="bg-white rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-2xl relative max-h-[92vh] overflow-y-auto touch-scroll">
@@ -625,23 +684,91 @@
         tbody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500">No hay nacimientos registrados aún en Supabase.</td></tr>`;
         return;
       }
-      tbody.innerHTML = lista.map(n => `
-        <tr class="hover:bg-green-50 transition-colors">
-          <td class="p-2.5 sm:p-3 font-bold text-gray-900 whitespace-nowrap">${n.fecha_nacimiento || '-'}</td>
-          <td class="p-2.5 sm:p-3 font-bold text-blue-700">${n.rp_cria || '<span class="text-gray-400 font-normal">Por asignar</span>'}</td>
-          <td class="p-2.5 sm:p-3 font-bold">${n.sexo === 'M' ? 'Macho 🐂' : 'Hembra 🐄'}</td>
-          <td class="p-2.5 sm:p-3 font-bold text-green-900">${n.vaca_rp || '-'}</td>
-          <td class="p-2.5 sm:p-3 text-gray-600 whitespace-nowrap">${n.fecha_servicio || 'Sin registro'}</td>
-          <td class="p-2.5 sm:p-3 text-gray-600">${n.toro_hba || 'N/D'}</td>
-          <td class="p-2.5 sm:p-3 text-gray-800 font-semibold whitespace-nowrap">${n.toro_nombre || '-'}</td>
-          <td class="p-2.5 sm:p-3 text-gray-500">${n.peso_al_nacer ? n.peso_al_nacer + ' kg' : '<span class="text-gray-400 font-normal">Vacío</span>'}</td>
-          <td class="p-2.5 sm:p-3 text-center">
-            <button onclick="eliminarNacimiento('${n.id}')" class="text-red-500 hover:text-red-700 font-bold p-1 rounded hover:bg-red-50 transition-colors" title="Eliminar nacimiento">
-              🗑️
-            </button>
-          </td>
-        </tr>
-      `).join("");
+      tbody.innerHTML = lista.map(n => {
+        const sinServicio = !n.fecha_servicio || n.toro_hba === 'N/D' || !n.toro_nombre;
+        const alertaRojaHTML = sinServicio 
+          ? `<div class="bg-red-50 text-red-700 border border-red-200 text-[10px] px-2 py-1 rounded font-bold mt-1 inline-flex items-center gap-1 shadow-sm">⚠️ Sin Servicio Previo</div>` 
+          : '';
+
+        return `
+          <tr class="hover:bg-green-50 transition-colors">
+            <td class="p-2.5 sm:p-3 font-bold text-gray-900 whitespace-nowrap">
+              ${n.fecha_nacimiento || '-'}
+              ${alertaRojaHTML}
+            </td>
+            <td class="p-2.5 sm:p-3 font-bold text-blue-700">${n.rp_cria || '<span class="text-gray-400 font-normal">Por asignar</span>'}</td>
+            <td class="p-2.5 sm:p-3 font-bold">${n.sexo === 'M' ? 'Macho 🐂' : 'Hembra 🐄'}</td>
+            <td class="p-2.5 sm:p-3 font-bold text-green-900">${n.vaca_rp || '-'}</td>
+            <td class="p-2.5 sm:p-3 text-gray-600 whitespace-nowrap">${n.fecha_servicio || 'Sin registro'}</td>
+            <td class="p-2.5 sm:p-3 text-gray-600">${n.toro_hba || 'N/D'}</td>
+            <td class="p-2.5 sm:p-3 text-gray-800 font-semibold whitespace-nowrap">${n.toro_nombre || '-'}</td>
+            <td class="p-2.5 sm:p-3 text-gray-500">${n.peso_al_nacer ? n.peso_al_nacer + ' kg' : '<span class="text-gray-400 font-normal">Vacío</span>'}</td>
+            <td class="p-2.5 sm:p-3 text-center whitespace-nowrap">
+              <button onclick='abrirModalEditarNacimiento(${JSON.stringify(n)})' class="text-blue-600 hover:text-blue-800 font-bold p-1 rounded hover:bg-blue-50 transition-colors mr-1" title="Editar nacimiento">
+                ✏️
+              </button>
+              <button onclick="eliminarNacimiento('${n.id}')" class="text-red-500 hover:text-red-700 font-bold p-1 rounded hover:bg-red-50 transition-colors" title="Eliminar nacimiento">
+                🗑️
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function abrirModalEditarNacimiento(n) {
+      document.getElementById("edit-nac-id").value = n.id;
+      document.getElementById("edit-nac-fecha").value = n.fecha_nacimiento || '';
+      document.getElementById("edit-nac-rpcria").value = n.rp_cria || '';
+      document.getElementById("edit-nac-sexo").value = n.sexo || 'M';
+      document.getElementById("edit-nac-vaca").value = n.vaca_rp || '';
+      document.getElementById("edit-nac-fechaserv").value = n.fecha_servicio || '';
+      document.getElementById("edit-nac-peso").value = n.peso_al_nacer || '';
+      document.getElementById("edit-nac-toronom").value = n.toro_nombre || '';
+      document.getElementById("edit-nac-torohba").value = n.toro_hba || '';
+
+      document.getElementById("modal-editar-nacimiento").classList.remove("hidden");
+    }
+
+    function cerrarModalEditarNacimiento() {
+      document.getElementById("modal-editar-nacimiento").classList.add("hidden");
+    }
+
+    async function guardarEdicionNacimiento(e) {
+      e.preventDefault();
+      const id = document.getElementById("edit-nac-id").value;
+      const datosActualizados = {
+        fecha_nacimiento: document.getElementById("edit-nac-fecha").value,
+        rp_cria: document.getElementById("edit-nac-rpcria").value || null,
+        sexo: document.getElementById("edit-nac-sexo").value,
+        vaca_rp: Number(document.getElementById("edit-nac-vaca").value) || document.getElementById("edit-nac-vaca").value,
+        fecha_servicio: document.getElementById("edit-nac-fechaserv").value || null,
+        peso_al_nacer: document.getElementById("edit-nac-peso").value ? Number(document.getElementById("edit-nac-peso").value) : null,
+        toro_nombre: document.getElementById("edit-nac-toronom").value || null,
+        toro_hba: document.getElementById("edit-nac-torohba").value || null
+      };
+
+      if (typeof supabaseClient !== 'undefined') {
+        try {
+          const { error } = await supabaseClient
+            .from('nacimientos')
+            .update(datosActualizados)
+            .eq('id', id);
+
+          if (error) {
+            alert("Error al actualizar en Supabase: " + error.message);
+            return;
+          }
+        } catch (err) {
+          console.error("Excepción al editar nacimiento:", err);
+          alert("Ocurrió un error al actualizar.");
+          return;
+        }
+      }
+
+      cerrarModalEditarNacimiento();
+      alert("✅ ¡Nacimiento actualizado con éxito!");
+      await recargarNacimientosDesdeSupa();
     }
 
     async function eliminarNacimiento(idNacimiento) {
