@@ -512,6 +512,51 @@
     const TOROS_CATALOGO_INICIAL = [
       { id: "toro-735", nombre: "RP 735", hba: "Pendiente", rp: "735", padre: "Halcón", rp_padre: "8554", madre: "262", rp_madre: "262", pedigree: "Halcón x 262 (RP 262)", criador: "Cabaña Santa Cándida", propietario: "Cabaña Santa Cándida", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
       { id: "toro-yanquetruz", nombre: "TRES MARIAS C337 YANQUETRUZ T/E", hba: "888590", rp: "C337", fecha_nacimiento: "2022-04-16", peso_nacer: 44.0, peso_205d: 357.0, peso_ano: 791.0, peso_maduro: 1050, circunferencia_escrotal: 42.0, padre: "DON JOSE 176 MAXI-T/E", madre: "TRES MARIAS B074 GARDEL 9946-T/E", pedigree: "Maxi x Gardel x Credito", criador: "Cabaña Tres Marías de Gutiérrez", propietario: "Lenti, Legaccio, Agroganadera Pucon, GENPRO", sexo: "M", tipo: "Toro Reproductor", es_propio: false },
+      
+      /* --- TORO GARDEL (Incorporado con datos oficiales de certificado y catálogos) --- */
+      { 
+        id: "toro-gardel", 
+        nombre: "TRES MARIAS A689 GARDEL", 
+        hba: "830039", 
+        rp: "A689", 
+        apodo: "GARDEL",
+        fecha_nacimiento: "2015-10-21", 
+        peso_nacer: 40, 
+        peso_205d: 292, 
+        peso_ano: 746, 
+        peso_maduro: 1317, 
+        frame: 5.2, 
+        circunferencia_escrotal: 37.4, 
+        padre: "TRES MARIAS 9989 ZORZALITO 8958-T/", 
+        madre: "TRES MARIAS 9350 SALVAJE 7722-T/E", 
+        pedigree: "Zorzalito x Salvaje x Credito", 
+        criador: "Cabaña Tres Marías S.A.", 
+        propietario: "Cab. Tres Marías S.A., Buch", 
+        sexo: "M", 
+        tipo: "Toro Reproductor", 
+        es_propio: false, 
+        tiene_deps: true, 
+        deps: { gest: "-0.6", nacer: "-0.2", dest: "+7.5", leche: "-2.6", final: "+14.8", ce: "+0.9", altura: "+3.0", egd: "+0.12", egc: "+0.10", aob: "-2.9", gi: "+0.05", cm: "-" }, 
+        precs: { gest: "0.59", nacer: "0.78", dest: "0.77", leche: "0.56", final: "0.62", ce: "0.69", altura: "0.76", egd: "0.66", egc: "0.68", aob: "0.66", gi: "0.64", cm: "0.66" }, 
+        percs: { gest: "40%", nacer: "45%", dest: "30%", leche: "95%", final: "65%", ce: "75%", altura: "5%", egd: "55%", egc: "75%", aob: "100%", gi: "15%", cm: "95%" } 
+      },
+
+      /* --- TORO JERONIMO (Incorporado con cruza solicitada Centenario x Gardel) --- */
+      { 
+        id: "toro-jeronimo", 
+        nombre: "JERONIMO", 
+        hba: "Pendiente", 
+        rp: "JERONIMO", 
+        padre: "Centenario", 
+        madre: "Gardel", 
+        pedigree: "Centenario x Gardel", 
+        criador: "Cabaña Tres Marías", 
+        propietario: "Cabaña Tres Marías", 
+        sexo: "M", 
+        tipo: "Toro Reproductor", 
+        es_propio: false 
+      },
+
       { id: "toro-779", nombre: "RP 779", hba: "920985", rp: "779", fecha_nacimiento: "2025-09-11", padre: "LÚCUMA", rp_padre: "4178", madre: "374", rp_madre: "374", pedigree: "LÚCUMA x 374 (RP 374)", criador: "Cabaña Santa Cándida", propietario: "Cabaña Santa Cándida", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
       { id: "toro-631", nombre: "HERJA ZORZAL 407 ÑATO T/E", hba: "901597", rp: "631", fecha_nacimiento: "2023-09-18", peso_nacer: 30, padre: "EL ABRA JEWLIAN MELGA A893", rp_padre: "A893", madre: "ANTOCAR CAROLA", rp_madre: "407", pedigree: "EL ABRA JEWLIAN MELGA A893 x ANTOCAR CAROLA (RP 407)", criador: "Santa Cándida S.R.L.", propietario: "Santa Cándida S.R.L.", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
       { id: "toro-595", nombre: "Tano", hba: "Pendiente", rp: "595", padre: "Napolitano", madre: "Santa Cándida 200", rp_madre: "200", pedigree: "Napolitano x Santa Cándida 200", criador: "Cabaña Santa Cándida", propietario: "Cabaña Santa Cándida", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
