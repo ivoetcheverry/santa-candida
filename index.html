@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Santa Cándida - Gestión Angus Offline</title>
   <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="apple-touch-icon" href="logo.png">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Librería para exportar Excel directamente desde la App Web -->
@@ -25,7 +27,10 @@
   <header class="bg-green-800 text-white p-3 shadow-md sticky top-0 z-40">
     <div class="max-w-4xl mx-auto space-y-2">
       <div class="flex justify-between items-center">
-        <h1 class="text-lg font-bold flex items-center gap-1.5">🐂 Santa Cándida</h1>
+        <h1 class="text-lg font-bold flex items-center gap-2">
+          <img src="logo.png" alt="Santa Cándida" class="w-8 h-8 rounded-full object-cover border border-green-600 bg-white"> 
+          Santa Cándida
+        </h1>
         <span id="estado-red" class="text-[11px] bg-green-600 px-2 py-0.5 rounded-full font-semibold shrink-0">Online</span>
       </div>
       
@@ -137,11 +142,16 @@
 
     <!-- VISTA NACIMIENTOS SRA -->
     <section id="vista-nacimientos" class="hidden space-y-3">
-      <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center gap-2">
+      <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex flex-wrap justify-between items-center gap-2">
         <h2 class="text-sm font-bold text-gray-800">🐣 Registro Continuo de Nacimientos</h2>
-        <button onclick="descargarExcelSRA()" class="bg-green-800 hover:bg-green-900 text-white text-xs font-bold px-3.5 py-2 rounded-lg shrink-0 flex items-center gap-1.5 shadow">
-          📥 Exportar Excel (SRA)
-        </button>
+        <div class="flex gap-2">
+          <button onclick="abrirModalNuevoNacimiento()" class="bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold px-3.5 py-2 rounded-lg shrink-0 flex items-center gap-1.5 shadow">
+            ➕ Registrar Nacimiento
+          </button>
+          <button onclick="descargarExcelSRA()" class="bg-green-800 hover:bg-green-900 text-white text-xs font-bold px-3.5 py-2 rounded-lg shrink-0 flex items-center gap-1.5 shadow">
+            📥 Exportar Excel (SRA)
+          </button>
+        </div>
       </div>
       <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto touch-scroll">
         <table class="w-full text-xs sm:text-sm text-left">
@@ -194,6 +204,64 @@
       </div>
     </section>
   </main>
+
+  <!-- MODAL NUEVO NACIMIENTO -->
+  <div id="modal-nuevo-nacimiento" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl relative max-h-[92vh] overflow-y-auto touch-scroll">
+      <button onclick="cerrarModalNuevoNacimiento()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 font-bold text-xl p-1">✕</button>
+      <h2 class="text-base font-bold text-gray-900 border-b pb-2">🐣 Registrar Nuevo Nacimiento Manual</h2>
+      
+      <form id="form-nuevo-nacimiento" onsubmit="guardarNuevoNacimiento(event)" class="space-y-3">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Fecha Nacimiento:</label>
+            <input type="date" id="nuevo-nac-fecha" class="w-full p-2 text-xs border rounded-lg" required>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">RP Cría:</label>
+            <input type="text" id="nuevo-nac-rpcria" class="w-full p-2 text-xs border rounded-lg" placeholder="Ej: 801" required>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Sexo:</label>
+            <select id="nuevo-nac-sexo" class="w-full p-2 text-xs border rounded-lg bg-white">
+              <option value="M">Macho 🐂</option>
+              <option value="F">Hembra 🐄</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">RP Madre:</label>
+            <input type="text" id="nuevo-nac-vaca" class="w-full p-2 text-xs border rounded-lg" placeholder="Ej: 374" required>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Fecha Servicio:</label>
+            <input type="date" id="nuevo-nac-fechaserv" class="w-full p-2 text-xs border rounded-lg">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Peso al Nacer (kg):</label>
+            <input type="number" step="0.1" id="nuevo-nac-peso" class="w-full p-2 text-xs border rounded-lg" placeholder="Ej: 34">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Nombre del Padre / Toro:</label>
+          <input type="text" id="nuevo-nac-toronom" class="w-full p-2 text-xs border rounded-lg" placeholder="Ej: LÚCUMA o GARDEL">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">HBA Padre:</label>
+          <input type="text" id="nuevo-nac-torohba" class="w-full p-2 text-xs border rounded-lg" placeholder="Ej: 830039">
+        </div>
+
+        <button type="submit" class="w-full bg-blue-700 text-white font-bold p-2.5 rounded-lg hover:bg-blue-800 text-xs shadow">Guardar y Sincronizar Nacimiento</button>
+      </form>
+    </div>
+  </div>
 
   <!-- MODAL EDITAR NACIMIENTO -->
   <div id="modal-editar-nacimiento" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-3 sm:p-4">
@@ -513,7 +581,6 @@
       { id: "toro-735", nombre: "RP 735", hba: "Pendiente", rp: "735", padre: "Halcón", rp_padre: "8554", madre: "262", rp_madre: "262", pedigree: "Halcón x 262 (RP 262)", criador: "Cabaña Santa Cándida", propietario: "Cabaña Santa Cándida", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
       { id: "toro-yanquetruz", nombre: "TRES MARIAS C337 YANQUETRUZ T/E", hba: "888590", rp: "C337", fecha_nacimiento: "2022-04-16", peso_nacer: 44.0, peso_205d: 357.0, peso_ano: 791.0, peso_maduro: 1050, circunferencia_escrotal: 42.0, padre: "DON JOSE 176 MAXI-T/E", madre: "TRES MARIAS B074 GARDEL 9946-T/E", pedigree: "Maxi x Gardel x Credito", criador: "Cabaña Tres Marías de Gutiérrez", propietario: "Lenti, Legaccio, Agroganadera Pucon, GENPRO", sexo: "M", tipo: "Toro Reproductor", es_propio: false },
       
-      /* --- TORO GARDEL (Incorporado con datos oficiales de certificado y catálogos) --- */
       { 
         id: "toro-gardel", 
         nombre: "TRES MARIAS A689 GARDEL", 
@@ -541,7 +608,6 @@
         percs: { gest: "40%", nacer: "45%", dest: "30%", leche: "95%", final: "65%", ce: "75%", altura: "5%", egd: "55%", egc: "75%", aob: "100%", gi: "15%", cm: "95%" } 
       },
 
-      /* --- TORO JERONIMO (Incorporado con cruza solicitada Centenario x Gardel) --- */
       { 
         id: "toro-jeronimo", 
         nombre: "JERONIMO", 
@@ -561,7 +627,6 @@
       { id: "toro-631", nombre: "HERJA ZORZAL 407 ÑATO T/E", hba: "901597", rp: "631", fecha_nacimiento: "2023-09-18", peso_nacer: 30, padre: "EL ABRA JEWLIAN MELGA A893", rp_padre: "A893", madre: "ANTOCAR CAROLA", rp_madre: "407", pedigree: "EL ABRA JEWLIAN MELGA A893 x ANTOCAR CAROLA (RP 407)", criador: "Santa Cándida S.R.L.", propietario: "Santa Cándida S.R.L.", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
       { id: "toro-595", nombre: "Tano", hba: "Pendiente", rp: "595", padre: "Napolitano", madre: "Santa Cándida 200", rp_madre: "200", pedigree: "Napolitano x Santa Cándida 200", criador: "Cabaña Santa Cándida", propietario: "Cabaña Santa Cándida", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
       
-      /* Toros incorporados de los catálogos PDF */
       { id: "toro-farabute", nombre: "FARABUTE", hba: "883315", rp: "1183", fecha_nacimiento: "2021-08-26", peso_nacer: 36, peso_205d: 357, peso_ano: 694, peso_maduro: null, frame: 4.1, circunferencia_escrotal: 40.0, padre: "INDIO NUEVO 1183 HERCULES 326-FIV", madre: "ESENCIAL 633 HERCULES", pedigree: "Hercules x Brutal x Candidato", criador: "Cabaña Santa Rosa", propietario: "Cabaña Santa Rosa", sexo: "M", tipo: "Toro Reproductor", es_propio: false, tiene_deps: true, deps: { gest: "-1.8", nacer: "-0.6", dest: "+4.7", leche: "+0.3", final: "+5.2", ce: "+0.7", altura: "+1.2", egd: "+0.11", egc: "+0.35", aob: "+0.15", gi: "-0.1", cm: "-" }, precs: { gest: "53", nacer: "65", dest: "54", leche: "41", final: "46", ce: "52", altura: "56", egd: "36", egc: "38", aob: "37", gi: "38", cm: "38" }, percs: { gest: "15%", nacer: "-", dest: "-", leche: "-", final: "-", ce: "-", altura: "-", egd: "-", egc: "-", aob: "3%", gi: "-", cm: "-" } },
       { id: "toro-redboxer", nombre: "RED BOXER", hba: "910993", rp: "SI 21217", fecha_nacimiento: "2021-03-08", peso_nacer: 35, peso_205d: 354, peso_ano: 548, peso_maduro: 880, frame: 4.8, circunferencia_escrotal: 43.0, padre: "DUFF RED BOXER 21217", madre: "WCR HAMMELECH 8127", pedigree: "Red Boxer x Hammelech x Blast", criador: "Duff Cattle Co.", propietario: "Select Debernardi / Axtell Cattle Company", sexo: "M", tipo: "Toro Reproductor", es_propio: false, tiene_deps: true, deps: { gest: "+7", nacer: "+2.0", dest: "+54", leche: "+27", final: "+85", ce: "+0.37", altura: "+11", egd: "+0.03", egc: "+0.04", aob: "+0.30", gi: "+17", cm: "-" }, precs: { gest: "54", nacer: "64", dest: "60", leche: "20", final: "57", ce: "33", altura: "64", egd: "36", egc: "33", aob: "41", gi: "44", cm: "32" }, percs: { gest: "-", nacer: "-", dest: "-", leche: "21%", final: "-", ce: "23%", altura: "12%", egd: "-", egc: "-", aob: "-", gi: "-", cm: "-" } },
       { id: "toro-johann", nombre: "JOHANN", hba: "877509", rp: "1009", fecha_nacimiento: "2020-07-19", peso_nacer: 32, peso_205d: 261, peso_ano: null, peso_maduro: 920, frame: 4.2, circunferencia_escrotal: 42.0, padre: "DOBLEHACHE 293 BIGUA-T/E", madre: "ESENCIAL JULIANA PICU", pedigree: "Tehuelche x Esencial x Jewlian 4214", criador: "Cabaña La Esencia", propietario: "Cabaña La Esencia", sexo: "M", tipo: "Toro Reproductor", es_propio: false, tiene_deps: true, deps: { gest: "-0.3", nacer: "-2.0", dest: "+0.5", leche: "-0.6", final: "+8.7", ce: "+0.4", altura: "+0.8", egd: "+0.19", egc: "+0.40", aob: "+0.18", gi: "-1.2", cm: "-" }, precs: { gest: "55", nacer: "65", dest: "71", leche: "63", final: "57", ce: "67", altura: "53", egd: "67", egc: "63", aob: "64", gi: "62", cm: "-" }, percs: { gest: "-", nacer: "5%", dest: "-", leche: "-", final: "20%", ce: "-", altura: "-", egd: "-", egc: "-", aob: "2%", gi: "-", cm: "-" } },
@@ -588,6 +653,11 @@
       if (inputFecha) {
         inputFecha.value = hoy;
         actualizarFPP();
+      }
+
+      const inputNacFecha = document.getElementById("nuevo-nac-fecha");
+      if (inputNacFecha) {
+        inputNacFecha.value = hoy;
       }
 
       window.addEventListener("online", actualizarEstadoRed);
@@ -759,6 +829,49 @@
           </tr>
         `;
       }).join("");
+    }
+
+    function abrirModalNuevoNacimiento() {
+      document.getElementById("form-nuevo-nacimiento").reset();
+      document.getElementById("nuevo-nac-fecha").value = new Date().toISOString().split("T")[0];
+      document.getElementById("modal-nuevo-nacimiento").classList.remove("hidden");
+    }
+
+    function cerrarModalNuevoNacimiento() {
+      document.getElementById("modal-nuevo-nacimiento").classList.add("hidden");
+    }
+
+    async function guardarNuevoNacimiento(e) {
+      e.preventDefault();
+      const nuevoNac = {
+        id: crypto.randomUUID(),
+        fecha_nacimiento: document.getElementById("nuevo-nac-fecha").value,
+        rp_cria: document.getElementById("nuevo-nac-rpcria").value.trim(),
+        sexo: document.getElementById("nuevo-nac-sexo").value,
+        vaca_rp: document.getElementById("nuevo-nac-vaca").value.trim(),
+        fecha_servicio: document.getElementById("nuevo-nac-fechaserv").value || null,
+        peso_al_nacer: document.getElementById("nuevo-nac-peso").value ? Number(document.getElementById("nuevo-nac-peso").value) : null,
+        toro_nombre: document.getElementById("nuevo-nac-toronom").value.trim() || null,
+        toro_hba: document.getElementById("nuevo-nac-torohba").value.trim() || 'N/D'
+      };
+
+      if (typeof supabaseClient !== 'undefined') {
+        try {
+          const { error } = await supabaseClient.from('nacimientos').insert([nuevoNac]);
+          if (error) {
+            alert("Error al guardar en Supabase: " + error.message);
+            return;
+          }
+        } catch (err) {
+          console.error("Excepción al registrar nacimiento:", err);
+          alert("Ocurrió un error al guardar el registro.");
+          return;
+        }
+      }
+
+      cerrarModalNuevoNacimiento();
+      alert("✅ ¡Nacimiento registrado con éxito!");
+      await recargarNacimientosDesdeSupa();
     }
 
     function abrirModalEditarNacimiento(n) {
