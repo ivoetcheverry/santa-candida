@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Santa Cándida - Gestión Angus Offline</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" type="image/png" href="logo.png">
-  <link rel="apple-touch-icon" href="logo.png">
+  <link rel="icon" type="image/png" href="./logo.png">
+  <link rel="apple-touch-icon" href="./logo.png">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Librería para exportar Excel directamente desde la App Web -->
@@ -28,7 +28,7 @@
     <div class="max-w-4xl mx-auto space-y-2">
       <div class="flex justify-between items-center">
         <h1 class="text-lg font-bold flex items-center gap-2">
-          <img src="logo.png" alt="Santa Cándida" class="w-8 h-8 rounded-full object-cover border border-green-600 bg-white"> 
+          <img src="./logo.png" alt="Santa Cándida" class="w-8 h-8 rounded-full object-cover border border-green-600 bg-white" onerror="this.onerror=null; this.src='logo.png';"> 
           Santa Cándida
         </h1>
         <span id="estado-red" class="text-[11px] bg-green-600 px-2 py-0.5 rounded-full font-semibold shrink-0">Online</span>
@@ -205,7 +205,7 @@
     </section>
   </main>
 
-  <!-- MODAL NUEVO NACIMIENTO -->
+  <!-- MODAL NUEVO NACIMIENTO (Sin obligación estricta de RP) -->
   <div id="modal-nuevo-nacimiento" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-3 sm:p-4">
     <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl relative max-h-[92vh] overflow-y-auto touch-scroll">
       <button onclick="cerrarModalNuevoNacimiento()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 font-bold text-xl p-1">✕</button>
@@ -218,8 +218,8 @@
             <input type="date" id="nuevo-nac-fecha" class="w-full p-2 text-xs border rounded-lg" required>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-gray-600 mb-1">RP Cría:</label>
-            <input type="text" id="nuevo-nac-rpcria" class="w-full p-2 text-xs border rounded-lg" placeholder="Ej: 801" required>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">RP Cría (Opcional):</label>
+            <input type="text" id="nuevo-nac-rpcria" class="w-full p-2 text-xs border rounded-lg" placeholder="Ej: 801 (opcional)">
           </div>
         </div>
 
@@ -811,7 +811,7 @@
               ${n.fecha_nacimiento || '-'}
               ${alertaRojaHTML}
             </td>
-            <td class="p-2.5 sm:p-3 font-bold text-blue-700">${n.rp_cria || '<span class="text-gray-400 font-normal">Por asignar</span>'}</td>
+            <td class="p-2.5 sm:p-3 font-bold text-blue-700">${n.rp_cria || '<span class="text-gray-400 font-normal">Sin asignar</span>'}</td>
             <td class="p-2.5 sm:p-3 font-bold">${n.sexo === 'M' ? 'Macho 🐂' : 'Hembra 🐄'}</td>
             <td class="p-2.5 sm:p-3 font-bold text-green-900">${n.vaca_rp || '-'}</td>
             <td class="p-2.5 sm:p-3 text-gray-600 whitespace-nowrap">${n.fecha_servicio || 'Sin registro'}</td>
@@ -846,7 +846,7 @@
       const nuevoNac = {
         id: crypto.randomUUID(),
         fecha_nacimiento: document.getElementById("nuevo-nac-fecha").value,
-        rp_cria: document.getElementById("nuevo-nac-rpcria").value.trim(),
+        rp_cria: document.getElementById("nuevo-nac-rpcria").value.trim() || null,
         sexo: document.getElementById("nuevo-nac-sexo").value,
         vaca_rp: document.getElementById("nuevo-nac-vaca").value.trim(),
         fecha_servicio: document.getElementById("nuevo-nac-fechaserv").value || null,
