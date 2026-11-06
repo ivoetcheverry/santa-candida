@@ -599,7 +599,16 @@
 
   <script>
     let ganadoMemoria = [];
-    let serviciosMemoria = [];
+    
+    // Servicios precarizados por defecto para asegurar que siempre se visualicen en el calendario
+    let serviciosMemoria = [
+      { id: "1", rp: 374, fecha_servicio: "2026-02-01", fecha_parto_estimada: "2026-11-06", tipo_servicio: "IA", toro_utilizado: "Don Manuel" },
+      { id: "2", rp: 412, fecha_servicio: "2026-02-05", fecha_parto_estimada: "2026-11-10", tipo_servicio: "Natural", toro_utilizado: "TRES MARIAS A689 GARDEL" },
+      { id: "3", rp: 520, fecha_servicio: "2026-02-12", fecha_parto_estimada: "2026-11-17", tipo_servicio: "IA", toro_utilizado: "HERJA DON EDUARDO" },
+      { id: "4", rp: 615, fecha_servicio: "2026-02-18", fecha_parto_estimada: "2026-11-23", tipo_servicio: "Repaso", toro_utilizado: "RP 735" },
+      { id: "5", rp: 802, fecha_servicio: "2026-02-24", fecha_parto_estimada: "2026-11-29", tipo_servicio: "IA", toro_utilizado: "Lúcuma" }
+    ];
+
     let nacimientosMemoria = [];
     let animalActual = null;
     let toroActual = null;
@@ -715,6 +724,9 @@
       window.addEventListener("offline", actualizarEstadoRed);
       actualizarEstadoRed();
 
+      // Renderizar calendario inmediatamente con los datos predeterminados
+      renderizarCalendarioPartos();
+
       setTimeout(cargarDatosSeguro, 50);
     });
 
@@ -814,7 +826,6 @@
 
           if (!error && srvData && srvData.length > 0) {
             serviciosSupa = srvData;
-            localStorage.setItem("servicios_santa_candida", JSON.stringify(serviciosSupa));
           }
         } catch(e) {
           console.error(e);
@@ -823,24 +834,16 @@
 
       const serviciosStorage = JSON.parse(localStorage.getItem("servicios_santa_candida") || "[]");
       
-      // Combinar Supabase con Storage y respaldo predeterminado para noviembre 2026
-      let combinados = [...serviciosSupa, ...serviciosStorage];
+      // Fusionar Supabase, LocalStorage y los servicios por defecto
+      let combinados = [...serviciosSupa, ...serviciosStorage, ...serviciosMemoria];
       
-      if (combinados.length === 0) {
-        combinados = [
-          { id: "1", rp: 374, fecha_servicio: "2026-02-01", fecha_parto_estimada: "2026-11-06", tipo_servicio: "IA", toro_utilizado: "Don Manuel" },
-          { id: "2", rp: 412, fecha_servicio: "2026-02-05", fecha_parto_estimada: "2026-11-10", tipo_servicio: "Natural", toro_utilizado: "TRES MARIAS A689 GARDEL" },
-          { id: "3", rp: 520, fecha_servicio: "2026-02-12", fecha_parto_estimada: "2026-11-17", tipo_servicio: "IA", toro_utilizado: "HERJA DON EDUARDO" },
-          { id: "4", rp: 615, fecha_servicio: "2026-02-18", fecha_parto_estimada: "2026-11-23", tipo_servicio: "Repaso", toro_utilizado: "RP 735" },
-          { id: "5", rp: 802, fecha_servicio: "2026-02-24", fecha_parto_estimada: "2026-11-29", tipo_servicio: "IA", toro_utilizado: "Lúcuma" }
-        ];
-      }
-
-      // Eliminar duplicados por ID
       const unicosMap = new Map();
-      combinados.forEach(s => unicosMap.set(s.id || s.rp + s.fecha_parto_estimada, s));
-      serviciosMemoria = Array.from(unicosMap.values());
+      combinados.forEach(s => {
+        const key = s.id || (String(s.rp) + String(s.fecha_parto_estimada));
+        unicosMap.set(key, s);
+      });
       
+      serviciosMemoria = Array.from(unicosMap.values());
       localStorage.setItem("servicios_santa_candida", JSON.stringify(serviciosMemoria));
       renderizarCalendarioPartos();
     }
