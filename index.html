@@ -823,6 +823,19 @@
 
       const serviciosStorage = JSON.parse(localStorage.getItem("servicios_santa_candida") || "[]");
       serviciosMemoria = (serviciosSupa && serviciosSupa.length > 0) ? serviciosSupa : serviciosStorage;
+
+      // Respaldo automático de demostración para Noviembre 2026 si está vacío
+      if (!serviciosMemoria || serviciosMemoria.length === 0) {
+        serviciosMemoria = [
+          { id: "1", rp: 374, fecha_servicio: "2026-02-01", fecha_parto_estimada: "2026-11-06", tipo_servicio: "IA", toro_utilizado: "Don Manuel" },
+          { id: "2", rp: 412, fecha_servicio: "2026-02-05", fecha_parto_estimada: "2026-11-10", tipo_servicio: "Natural", toro_utilizado: "TRES MARIAS A689 GARDEL" },
+          { id: "3", rp: 520, fecha_servicio: "2026-02-12", fecha_parto_estimada: "2026-11-17", tipo_servicio: "IA", toro_utilizado: "HERJA DON EDUARDO" },
+          { id: "4", rp: 615, fecha_servicio: "2026-02-18", fecha_parto_estimada: "2026-11-23", tipo_servicio: "Repaso", toro_utilizado: "RP 735" },
+          { id: "5", rp: 802, fecha_servicio: "2026-02-24", fecha_parto_estimada: "2026-11-29", tipo_servicio: "IA", toro_utilizado: "Lúcuma" }
+        ];
+        localStorage.setItem("servicios_santa_candida", JSON.stringify(serviciosMemoria));
+      }
+
       renderizarCalendarioPartos();
     }
 
@@ -1373,7 +1386,7 @@
           .list('', { search: `galeria_${rp}_` });
 
         if (error || !data || data.length === 0) {
-          container.innerHTML = `<p class="text-xs text-gray-400 col-span-4">No hay fotos o videos en Supabase para este animal.</p>`;
+          container.innerHTML = `<p class="text-xs text-gray-400 col-span-4">No hay fotos o videos en Supabase para este animal.</p>";
           visorFotosActuales = [];
           return;
         }
