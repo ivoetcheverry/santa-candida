@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Santa Cándida - Gestión Angus Offline</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" type="image/png" href="./logo.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="./logo.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="./logo.png">
   <link rel="apple-touch-icon" href="./logo.png">
+  <meta name="theme-color" content="#166534">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Librería para exportar Excel directamente desde la App Web -->
@@ -578,9 +580,28 @@
     let visorIndiceActual = 0;
 
     const TOROS_CATALOGO_INICIAL = [
+      { 
+        id: "toro-don-eduardo", 
+        nombre: "HERJA DON EDUARDO", 
+        hba: "824050", 
+        rp: "111", 
+        fecha_nacimiento: "2015-05-20", 
+        padre: "SANTA SERGIA AMIGO MANDARIN 2916", 
+        madre: "HERJA NIEVES", 
+        pedigree: "Don Antonio x Quebrantador x Regalon", 
+        criador: "Cabaña Santa Cándida S.R.L.", 
+        propietario: "CIBUS ARGENTINA S.A.I.C.Y A.", 
+        sexo: "M", 
+        tipo: "Toro Reproductor", 
+        es_propio: true, 
+        tiene_deps: true, 
+        deps: { gest: "-0.3", nacer: "+0.1", dest: "+4.2", leche: "-7.3", final: "+5.4", ce: "+1.2", altura: "+28", egd: "+0.02", egc: "+0.18", aob: "+0.3", gi: "0.00", cm: "+0.1" }, 
+        precs: { gest: "0.17", nacer: "0.44", dest: "0.39", leche: "0.26", final: "0.32", ce: "0.27", altura: "0.50", egd: "0.09", egc: "0.09", aob: "0.09", gi: "0.09", cm: "0.09" }, 
+        percs: { gest: "60%", nacer: "65%", dest: "70%", leche: "100%", final: "90%", ce: "50%", altura: "10%", egd: "80%", egc: "75%", aob: "80%", gi: "50%", cm: "35%" } 
+      },
       { id: "toro-don-manuel", nombre: "Don Manuel (HERJA PROTOTIPO 224 483 GENTIL)", hba: "COL 916887", rp: "659", fecha_nacimiento: "2024-07-17", padre: "ESENCIAL GENTIL", rp_padre: "555", madre: "HERJA DON EDUARDO 174 GENTIL", rp_madre: "483", pedigree: "Esencial Gentil x Herja Don Eduardo 483", criador: "Cabaña Santa Cándida S.R.L.", propietario: "Cabaña Santa Cándida S.R.L.", sexo: "M", tipo: "Toro Reproductor", es_propio: true, tiene_deps: true, deps: { gest: "+0.8", nacer: "-1.4", dest: "+5.4", leche: "+0.2", final: "+16.6", ce: "+1.1", altura: "+0.8", egd: "+0.15", egc: "+0.46", aob: "+0.04", gi: "-0.4", cm: "-" }, precs: { gest: "0.36", nacer: "0.43", dest: "0.46", leche: "0.31", final: "0.36", ce: "0.20", altura: "0.23", egd: "0.15", egc: "0.17", aob: "0.15", gi: "0.15", cm: "0.15" }, percs: { gest: "100%", nacer: "5%", dest: "55%", leche: "65%", final: "60%", ce: "50%", altura: "90%", egd: "25%", egc: "40%", aob: "30%", gi: "70%", cm: "-" } },
       { id: "toro-735", nombre: "RP 735", hba: "Pendiente", rp: "735", padre: "Halcón", rp_padre: "8554", madre: "262", rp_madre: "262", pedigree: "Halcón x 262 (RP 262)", criador: "Cabaña Santa Cándida", propietario: "Cabaña Santa Cándida", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
-      { id: "toro-yanquetruz", nombre: "TRES MARIAS C337 YANQUETRUZ T/E", hba: "888590", rp: "C337", fecha_nacimiento: "2022-04-16", peso_nacer: 44.0, peso_205d: 357.0, peso_ano: 791.0, peso_maduro: 1050, circunferencia_escrotal: 42.0, padre: "DON JOSE 176 MAXI-T/E", madre: "TRES MARIAS B074 GARDEL 9946-T/E", pedigree: "Maxi x Gardel x Credito", criador: "Cabaña Tres Marías de Gutiérrez", propietario: "Lenti, Legaccio, Agroganadera Pucon, GENPRO", sexo: "M", tipo: "Toro Reproductor", es_propio: false },
+      { id: "toro-yanquetruz", nombre: "TRES MARIAS C337 YANQUETRUZ T/E", hba: "888590", rp: "C337", fecha_nacimiento: "2022-04-16", padre: "DON JOSE 176 MAXI-T/E", madre: "TRES MARIAS B074 GARDEL 9946-T/E", pedigree: "Maxi x Gardel x Credito", criador: "Cabaña Tres Marías de Gutiérrez", propietario: "Lenti, Legaccio, Agroganadera Pucon, GENPRO", sexo: "M", tipo: "Toro Reproductor", es_propio: false },
       
       { 
         id: "toro-gardel", 
@@ -845,7 +866,13 @@
     async function guardarNuevoNacimiento(e) {
       e.preventDefault();
       const rawVacaRp = document.getElementById("nuevo-nac-vaca").value.trim();
-      const vacaRpParsed = /^\d+$/.test(rawVacaRp) ? Number(rawVacaRp) : rawVacaRp;
+      const limpioNum = rawVacaRp.replace(/\D/g, '');
+      const vacaRpParsed = limpioNum ? Number(limpioNum) : null;
+
+      if (!vacaRpParsed) {
+        alert("⚠️ Por favor ingresá un RP de madre válido (números).");
+        return;
+      }
 
       const nuevoNac = {
         id: crypto.randomUUID(),
@@ -900,7 +927,8 @@
       e.preventDefault();
       const id = document.getElementById("edit-nac-id").value;
       const rawVacaRp = document.getElementById("edit-nac-vaca").value.trim();
-      const vacaRpParsed = /^\d+$/.test(rawVacaRp) ? Number(rawVacaRp) : rawVacaRp;
+      const limpioNum = rawVacaRp.replace(/\D/g, '');
+      const vacaRpParsed = limpioNum ? Number(limpioNum) : null;
 
       const datosActualizados = {
         fecha_nacimiento: document.getElementById("edit-nac-fecha").value,
