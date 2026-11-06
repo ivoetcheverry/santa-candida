@@ -599,23 +599,14 @@
 
   <script>
     let ganadoMemoria = [];
-    
-    // Servicios precarizados por defecto para asegurar que siempre se visualicen en el calendario
-    let serviciosMemoria = [
-      { id: "1", rp: 374, fecha_servicio: "2026-02-01", fecha_parto_estimada: "2026-11-06", tipo_servicio: "IA", toro_utilizado: "Don Manuel" },
-      { id: "2", rp: 412, fecha_servicio: "2026-02-05", fecha_parto_estimada: "2026-11-10", tipo_servicio: "Natural", toro_utilizado: "TRES MARIAS A689 GARDEL" },
-      { id: "3", rp: 520, fecha_servicio: "2026-02-12", fecha_parto_estimada: "2026-11-17", tipo_servicio: "IA", toro_utilizado: "HERJA DON EDUARDO" },
-      { id: "4", rp: 615, fecha_servicio: "2026-02-18", fecha_parto_estimada: "2026-11-23", tipo_servicio: "Repaso", toro_utilizado: "RP 735" },
-      { id: "5", rp: 802, fecha_servicio: "2026-02-24", fecha_parto_estimada: "2026-11-29", tipo_servicio: "IA", toro_utilizado: "Lúcuma" }
-    ];
-
+    let serviciosMemoria = []; // Limpio de datos falsos, cargará puramente de Supabase/LocalStorage real
     let nacimientosMemoria = [];
     let animalActual = null;
     let toroActual = null;
     let visorFotosActuales = [];
     let visorIndiceActual = 0;
     
-    let fechaCalendarioActual = new Date(2026, 10, 1); // Forzar inicio en Noviembre 2026
+    let fechaCalendarioActual = new Date(2026, 10, 1); // Noviembre 2026
 
     const TOROS_CATALOGO_INICIAL = [
       { 
@@ -640,7 +631,6 @@
       { id: "toro-don-manuel", nombre: "Don Manuel (HERJA PROTOTIPO 224 483 GENTIL)", hba: "91688700", rp: "659", fecha_nacimiento: "2024-07-17", padre: "ESENCIAL GENTIL", rp_padre: "555", madre: "HERJA DON EDUARDO 174 GENTIL", rp_madre: "483", pedigree: "Esencial Gentil x Herja Don Eduardo 483", criador: "Cabaña Santa Cándida S.R.L.", propietario: "Cabaña Santa Cándida S.R.L.", sexo: "M", tipo: "Toro Reproductor", es_propio: true, tiene_deps: true, deps: { gest: "+0.8", nacer: "-1.4", dest: "+5.4", leche: "+0.2", final: "+16.6", ce: "+1.1", altura: "+0.8", egd: "+0.15", egc: "+0.46", aob: "+0.04", gi: "-0.4", cm: "-" }, precs: { gest: "0.36", nacer: "0.43", dest: "0.46", leche: "0.31", final: "0.36", ce: "0.20", altura: "0.23", egd: "0.15", egc: "0.17", aob: "0.15", gi: "0.15", cm: "0.15" }, percs: { gest: "100%", nacer: "5%", dest: "55%", leche: "65%", final: "60%", ce: "50%", altura: "90%", egd: "25%", egc: "40%", aob: "30%", gi: "70%", cm: "-" } },
       { id: "toro-735", nombre: "RP 735", hba: "Pendiente", rp: "735", padre: "Halcón", rp_padre: "8554", madre: "262", rp_madre: "262", pedigree: "Halcón x 262 (RP 262)", criador: "Cabaña Santa Cándida", propietario: "Cabaña Santa Cándida", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
       { id: "toro-yanquetruz", nombre: "TRES MARIAS C337 YANQUETRUZ T/E", hba: "888590", rp: "C337", fecha_nacimiento: "2022-04-16", padre: "DON JOSE 176 MAXI-T/E", madre: "TRES MARIAS B074 GARDEL 9946-T/E", pedigree: "Maxi x Gardel x Credito", criador: "Cabaña Tres Marías de Gutiérrez", propietario: "Lenti, Legaccio, Agroganadera Pucon, GENPRO", sexo: "M", tipo: "Toro Reproductor", es_propio: false },
-      
       { 
         id: "toro-gardel", 
         nombre: "TRES MARIAS A689 GARDEL", 
@@ -667,26 +657,10 @@
         precs: { gest: "0.59", nacer: "0.78", dest: "0.77", leche: "0.56", final: "0.62", ce: "0.69", altura: "0.76", egd: "0.66", egc: "0.68", aob: "0.66", gi: "0.64", cm: "0.66" }, 
         percs: { gest: "40%", nacer: "45%", dest: "30%", leche: "95%", final: "65%", ce: "75%", altura: "5%", egd: "55%", egc: "75%", aob: "100%", gi: "15%", cm: "95%" } 
       },
-
-      { 
-        id: "toro-jeronimo", 
-        nombre: "JERONIMO", 
-        hba: "Pendiente", 
-        rp: "JERONIMO", 
-        padre: "Centenario", 
-        madre: "Gardel", 
-        pedigree: "Centenario x Gardel", 
-        criador: "Cabaña Tres Marías", 
-        propietario: "Cabaña Tres Marías", 
-        sexo: "M", 
-        tipo: "Toro Reproductor", 
-        es_propio: false 
-      },
-
+      { id: "toro-jeronimo", nombre: "JERONIMO", hba: "Pendiente", rp: "JERONIMO", padre: "Centenario", madre: "Gardel", pedigree: "Centenario x Gardel", criador: "Cabaña Tres Marías", propietario: "Cabaña Tres Marías", sexo: "M", tipo: "Toro Reproductor", es_propio: false },
       { id: "toro-779", nombre: "RP 779", hba: "920985", rp: "779", fecha_nacimiento: "2025-09-11", padre: "LÚCUMA", rp_padre: "4178", madre: "374", rp_madre: "374", pedigree: "LÚCUMA x 374 (RP 374)", criador: "Cabaña Santa Cándida", propietario: "Cabaña Santa Cándida", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
       { id: "toro-631", nombre: "HERJA ZORZAL 407 ÑATO T/E", hba: "901597", rp: "631", fecha_nacimiento: "2023-09-18", peso_nacer: 30, padre: "EL ABRA JEWLIAN MELGA A893", rp_padre: "A893", madre: "ANTOCAR CAROLA", rp_madre: "407", pedigree: "EL ABRA JEWLIAN MELGA A893 x ANTOCAR CAROLA (RP 407)", criador: "Santa Cándida S.R.L.", propietario: "Santa Cándida S.R.L.", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
       { id: "toro-595", nombre: "Tano", hba: "Pendiente", rp: "595", padre: "Napolitano", madre: "Santa Cándida 200", rp_madre: "200", pedigree: "Napolitano x Santa Cándida 200", criador: "Cabaña Santa Cándida", propietario: "Cabaña Santa Cándida", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
-      
       { id: "toro-farabute", nombre: "FARABUTE", hba: "883315", rp: "1183", fecha_nacimiento: "2021-08-26", peso_nacer: 36, peso_205d: 357, peso_ano: 694, peso_maduro: null, frame: 4.1, circunferencia_escrotal: 40.0, padre: "INDIO NUEVO 1183 HERCULES 326-FIV", madre: "ESENCIAL 633 HERCULES", pedigree: "Hercules x Brutal x Candidato", criador: "Cabaña Santa Rosa", propietario: "Cabaña Santa Rosa", sexo: "M", tipo: "Toro Reproductor", es_propio: false, tiene_deps: true, deps: { gest: "-1.8", nacer: "-0.6", dest: "+4.7", leche: "+0.3", final: "+5.2", ce: "+0.7", altura: "+1.2", egd: "+0.11", egc: "+0.35", aob: "+0.15", gi: "-0.1", cm: "-" }, precs: { gest: "53", nacer: "65", dest: "54", leche: "41", final: "46", ce: "52", altura: "56", egd: "36", egc: "38", aob: "37", gi: "38", cm: "38" }, percs: { gest: "15%", nacer: "-", dest: "-", leche: "-", final: "-", ce: "-", altura: "-", egd: "-", egc: "-", aob: "3%", gi: "-", cm: "-" } },
       { id: "toro-redboxer", nombre: "RED BOXER", hba: "910993", rp: "SI 21217", fecha_nacimiento: "2021-03-08", peso_nacer: 35, peso_205d: 354, peso_ano: 548, peso_maduro: 880, frame: 4.8, circunferencia_escrotal: 43.0, padre: "DUFF RED BOXER 21217", madre: "WCR HAMMELECH 8127", pedigree: "Red Boxer x Hammelech x Blast", criador: "Duff Cattle Co.", propietario: "Select Debernardi / Axtell Cattle Company", sexo: "M", tipo: "Toro Reproductor", es_propio: false, tiene_deps: true, deps: { gest: "+7", nacer: "+2.0", dest: "+54", leche: "+27", final: "+85", ce: "+0.37", altura: "+11", egd: "+0.03", egc: "+0.04", aob: "+0.30", gi: "+17", cm: "-" }, precs: { gest: "54", nacer: "64", dest: "60", leche: "20", final: "57", ce: "33", altura: "64", egd: "36", egc: "33", aob: "41", gi: "44", cm: "32" }, percs: { gest: "-", nacer: "-", dest: "-", leche: "21%", final: "-", ce: "23%", altura: "12%", egd: "-", egc: "-", aob: "-", gi: "-", cm: "-" } },
       { id: "toro-johann", nombre: "JOHANN", hba: "877509", rp: "1009", fecha_nacimiento: "2020-07-19", peso_nacer: 32, peso_205d: 261, peso_ano: null, peso_maduro: 920, frame: 4.2, circunferencia_escrotal: 42.0, padre: "DOBLEHACHE 293 BIGUA-T/E", madre: "ESENCIAL JULIANA PICU", pedigree: "Tehuelche x Esencial x Jewlian 4214", criador: "Cabaña La Esencia", propietario: "Cabaña La Esencia", sexo: "M", tipo: "Toro Reproductor", es_propio: false, tiene_deps: true, deps: { gest: "-0.3", nacer: "-2.0", dest: "+0.5", leche: "-0.6", final: "+8.7", ce: "+0.4", altura: "+0.8", egd: "+0.19", egc: "+0.40", aob: "+0.18", gi: "-1.2", cm: "-" }, precs: { gest: "55", nacer: "65", dest: "71", leche: "63", final: "57", ce: "67", altura: "53", egd: "67", egc: "63", aob: "64", gi: "62", cm: "-" }, percs: { gest: "-", nacer: "5%", dest: "-", leche: "-", final: "20%", ce: "-", altura: "-", egd: "-", egc: "-", aob: "2%", gi: "-", cm: "-" } },
@@ -695,7 +669,6 @@
       { id: "toro-anguson", nombre: "ANGUS ON", hba: "914741", rp: "SI 2216", fecha_nacimiento: "2021-12-10", peso_nacer: 29, peso_205d: 365, peso_ano: 540, peso_maduro: 970, frame: 4.1, circunferencia_escrotal: 42.0, padre: "DUFF NEW EDITION 6108", madre: "RED SCNJ MASTER 14U", pedigree: "Mr Angus x Master x End Cut", criador: "Duff Cattle Co.", propietario: "Select Debernardi y JR Ranch", sexo: "M", tipo: "Toro Reproductor", es_propio: false, tiene_deps: true, deps: { gest: "+16", nacer: "-1.5", dest: "+47", leche: "+20", final: "+73", ce: "+0.61", altura: "+5", egd: "-0.03", egc: "0.01", aob: "-0.00", gi: "0.0", cm: "-" }, precs: { gest: "44", nacer: "45", dest: "49", leche: "23", final: "44", ce: "29", altura: "40", egd: "40", egc: "38", aob: "35", gi: "36", cm: "31" }, percs: { gest: "24%", nacer: "-", dest: "9%", leche: "11%", final: "-", ce: "4%", altura: "25%", egd: "18%", egc: "-", aob: "-", gi: "19%", cm: "-" } },
       { id: "toro-macangus", nombre: "MAC ANGUS", hba: "845478", rp: "3672", fecha_nacimiento: "2017-08-24", peso_nacer: 31, peso_205d: 224, peso_ano: 443, peso_maduro: 850, frame: 4.5, circunferencia_escrotal: 39.5, padre: "DUFF NEW EDITION 6108", madre: "SAV PIONEER 7301", pedigree: "Mr Angus x Pioneer x Catriel", criador: "Cab. Payma", propietario: "Cab. Payma / Cab. La Guagua / Omar Jubete / MV Emanuel Muñoz", sexo: "M", tipo: "Toro Reproductor", es_propio: false, tiene_deps: true, deps: { gest: "-2.5", nacer: "-0.3", dest: "+5.0", leche: "+1.7", final: "+8.9", ce: "+1.3", altura: "+0.9", egd: "+0.6", egc: "-0.04", aob: "+0.22", gi: "-0.04", cm: "+0.2" }, precs: { gest: "72", nacer: "79", dest: "76", leche: "25", final: "61", ce: "69", altura: "80", egd: "35", egc: "71", aob: "69", gi: "70", cm: "69" }, percs: { gest: "2%", nacer: "-", dest: "-", leche: "25%", final: "-", ce: "-", altura: "-", egd: "-", egc: "-", aob: "-", gi: "-", cm: "-" } },
       { id: "toro-picante", nombre: "PICANTE", hba: "904497", rp: "1379", fecha_nacimiento: "2023-09-22", peso_nacer: 44, peso_205d: 280, peso_ano: null, peso_maduro: 1050, frame: 4.8, circunferencia_escrotal: 45.0, padre: "MALELE 875 BATACAZO T/E", madre: "TRES MARIAS A766 RESOURCE 8916-T/", pedigree: "Batacazo x Resource x Candelero", criador: "Arandu S.A.", propietario: "Select Debernardi, Micloin SRL, Indio Nuevo SA, La Benedicta, Rubeta SA, La Nata SA, Est. La Llovizna SA, Gente Chica SRL Rodeo El Delmo SA, Arandu SA.", sexo: "M", tipo: "Toro Reproductor", es_propio: false, tiene_deps: true, deps: { gest: "+0.2", nacer: "+0.5", dest: "+8.7", leche: "+4.0", final: "+11.1", ce: "+1.1", altura: "+1.1", egd: "+0.73", egc: "+0.99", aob: "-0.09", gi: "-0.2", cm: "-" }, precs: { gest: "31", nacer: "49", dest: "47", leche: "39", final: "40", ce: "31", altura: "49", egd: "33", egc: "31", aob: "32", gi: "33", cm: "32" }, percs: { gest: "-", nacer: "-", dest: "15%", leche: "-", final: "-", ce: "10%", altura: "-", egd: "3%", egc: "10%", aob: "-", gi: "-", cm: "-" } },
-
       { id: "toro-remixado", nombre: "Remixado", hba: "831468", rp: "1717", fecha_nacimiento: "2015-01-01", peso_nacer: 28, peso_205d: 265, peso_ano: 580, peso_maduro: 989, frame: 4.7, circunferencia_escrotal: 43, criador: "Cabaña Don José", propietario: "Cabaña Don José / Cabaña La Guagua", sexo: "M", tipo: "Toro Reproductor", es_propio: false },
       { id: "toro-caracho", nombre: "Caracho", hba: "845146", rp: "2105", fecha_nacimiento: "2017-08-13", peso_nacer: 36, peso_205d: 343, peso_ano: 600, peso_maduro: 980, frame: 4.1, circunferencia_escrotal: 40, pedigree: "Remixado x Bismarck x Final Dream", criador: "Cabaña Don José", propietario: "Cabaña Don José", sexo: "M", tipo: "Toro Reproductor", es_propio: false },
       { id: "toro-record", nombre: "Record", hba: "870459", rp: "579", fecha_nacimiento: "2020-08-08", peso_nacer: 34, peso_205d: 325, peso_ano: 630, peso_maduro: 1020, frame: 4.3, circunferencia_escrotal: 43, pedigree: "Reckoning x Yesquero x Perks Advance", criador: "Los Murmullos", propietario: "Cabaña El Cortijo de Campos de Torres", sexo: "M", tipo: "Toro Reproductor", es_propio: false },
@@ -724,9 +697,7 @@
       window.addEventListener("offline", actualizarEstadoRed);
       actualizarEstadoRed();
 
-      // Renderizar calendario inmediatamente con los datos predeterminados
       renderizarCalendarioPartos();
-
       setTimeout(cargarDatosSeguro, 50);
     });
 
@@ -824,7 +795,7 @@
             .select('*')
             .order('fecha_parto_estimada', { ascending: true });
 
-          if (!error && srvData && srvData.length > 0) {
+          if (!error && srvData) {
             serviciosSupa = srvData;
           }
         } catch(e) {
@@ -834,9 +805,7 @@
 
       const serviciosStorage = JSON.parse(localStorage.getItem("servicios_santa_candida") || "[]");
       
-      // Fusionar Supabase, LocalStorage y los servicios por defecto
-      let combinados = [...serviciosSupa, ...serviciosStorage, ...serviciosMemoria];
-      
+      let combinados = [...serviciosSupa, ...serviciosStorage];
       const unicosMap = new Map();
       combinados.forEach(s => {
         const key = s.id || (String(s.rp) + String(s.fecha_parto_estimada));
@@ -1950,7 +1919,6 @@
       document.getElementById("srv-vaca-search").value = rp;
     }
 
-    /* --- CALENDARIO TRADICIONAL GRANDE CON LISTAS EN CADA DÍA --- */
     function cambiarMesCalendario(direccion) {
       fechaCalendarioActual.setMonth(fechaCalendarioActual.getMonth() + direccion);
       renderizarCalendarioPartos();
@@ -1958,7 +1926,7 @@
 
     function renderizarCalendarioPartos() {
       const anio = fechaCalendarioActual.getFullYear();
-      const mes = fechaCalendarioActual.getMonth(); // 0-11
+      const mes = fechaCalendarioActual.getMonth();
       const nombresMeses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
       const tituloMes = document.getElementById("calendario-mes-titulo");
@@ -1966,7 +1934,6 @@
 
       const query = (document.getElementById("input-buscar-servicio")?.value || "").toLowerCase().trim();
 
-      // Filtrar servicios globales según buscador
       let filtrados = serviciosMemoria.filter(s => {
         const rpVaca = String(s.rp !== undefined ? s.rp : s.vaca_rp || "").toLowerCase();
         const toro = String(s.toro_utilizado || "").toLowerCase();
@@ -1976,7 +1943,6 @@
         return !query || rpVaca.includes(query) || toro.includes(query) || nomVaca.includes(query);
       });
 
-      // Mapear partos por fecha "YYYY-MM-DD"
       const mapaPartos = {};
       filtrados.forEach(s => {
         const fParto = String(s.fecha_parto_estimada || "").split("T")[0];
@@ -1986,23 +1952,20 @@
         }
       });
 
-      // Dibujar grilla tradicional de días del mes con listado directo
       const grillaDias = document.getElementById("grilla-calendario-dias");
       if (grillaDias) {
         let diasHtml = "";
         const primerDiaMes = new Date(anio, mes, 1);
-        let diaInicioSemana = primerDiaMes.getDay() - 1; // Lunes = 0
-        if (diaInicioSemana === -1) diaInicioSemana = 6; // Domingo
+        let diaInicioSemana = primerDiaMes.getDay() - 1;
+        if (diaInicioSemana === -1) diaInicioSemana = 6;
 
         const ultimoDiaMes = new Date(anio, mes + 1, 0).getDate();
         const hoyStr = new Date().toISOString().split("T")[0];
 
-        // Rellenar espacios vacíos antes del primer día del mes
         for (let i = 0; i < diaInicioSemana; i++) {
           diasHtml += `<div class="min-h-[110px] sm:min-h-[130px] bg-gray-50/50 rounded-xl border border-dashed border-gray-200"></div>`;
         }
 
-        // Días reales del mes
         for (let d = 1; d <= ultimoDiaMes; d++) {
           const mesStr = String(mes + 1).padStart(2, '0');
           const diaStr = String(d).padStart(2, '0');
@@ -2054,7 +2017,6 @@
       }
     }
 
-    /* --- ÁRBOL GENEALÓGICO --- */
     function buscarAnimalArbol() {
       const input = document.getElementById("arbol-search");
       const res = document.getElementById("arbol-results");
