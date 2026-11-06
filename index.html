@@ -8,10 +8,11 @@
   <link rel="icon" type="image/png" sizes="192x192" href="./logo.png">
   <link rel="icon" type="image/png" sizes="512x512" href="./logo.png">
   <link rel="apple-touch-icon" href="./logo.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#166534">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- Librería para exportar Excel directamente desde la App Web -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
     const SUPABASE_URL = 'https://xmaplzwncqxvmlbsczif.supabase.co';
@@ -28,10 +29,10 @@
 
   <header class="bg-green-800 text-white p-3 shadow-md sticky top-0 z-40">
     <div class="max-w-4xl mx-auto space-y-2">
-      <div class="flex justify-between items-center">
-        <h1 class="text-lg font-bold flex items-center gap-2">
-          <img src="./logo.png" alt="Santa Cándida" class="w-8 h-8 rounded-full object-cover border border-green-600 bg-white" onerror="this.onerror=null; this.src='logo.png';"> 
-          Santa Cándida
+      <div class="flex justify-between items-center gap-2">
+        <h1 class="text-base sm:text-lg font-bold flex items-center gap-2 min-w-0">
+          <img src="./logo.png" alt="Santa Cándida" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-green-600 bg-white shrink-0" onerror="this.onerror=null; this.src='logo.png';"> 
+          <span class="truncate">Santa Cándida</span>
         </h1>
         <span id="estado-red" class="text-[11px] bg-green-600 px-2 py-0.5 rounded-full font-semibold shrink-0">Online</span>
       </div>
@@ -39,7 +40,7 @@
       <nav class="flex gap-1.5 bg-green-900/60 p-1 rounded-xl text-xs font-semibold overflow-x-auto no-scrollbar whitespace-nowrap touch-scroll">
         <button onclick="cambiarVista('inventario')" id="btn-inventario" class="px-3 py-1.5 rounded-lg bg-white text-green-900 font-bold shadow shrink-0">Inventario</button>
         <button onclick="cambiarVista('toros')" id="btn-toros" class="px-3 py-1.5 rounded-lg text-green-100 hover:bg-green-700 shrink-0">Toros</button>
-        <button onclick="cambiarVista('servicios')" id="btn-servicios" class="px-3 py-1.5 rounded-lg text-green-100 hover:bg-green-700 shrink-0">Servicios</button>
+        <button onclick="cambiarVista('servicios')" id="btn-servicios" class="px-3 py-1.5 rounded-lg text-green-100 hover:bg-green-700 shrink-0">📅 Servicios y Partos</button>
         <button onclick="cambiarVista('nacimientos')" id="btn-nacimientos" class="px-3 py-1.5 rounded-lg text-green-100 hover:bg-green-700 shrink-0">🐣 Nacimientos SRA</button>
         <button onclick="cambiarVista('arbol')" id="btn-arbol" class="px-3 py-1.5 rounded-lg text-green-100 hover:bg-green-700 shrink-0">Árbol Genealógico</button>
       </nav>
@@ -91,10 +92,13 @@
       </div>
     </section>
 
-    <!-- VISTA SERVICIOS -->
+    <!-- VISTA SERVICIOS Y CALENDARIO DE PARTOS -->
     <section id="vista-servicios" class="hidden space-y-5">
+      <!-- FORMULARIO REGISTRO NUEVO SERVICIO -->
       <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 space-y-4 max-w-lg mx-auto">
-        <h2 class="text-base sm:text-lg font-bold text-gray-800">🧬 Registrar Nuevo Servicio / IA</h2>
+        <h2 class="text-base sm:text-lg font-bold text-gray-800 flex items-center gap-2">
+          <span>🧬</span> Registrar Nuevo Servicio / IA
+        </h2>
         <form id="form-servicio" onsubmit="guardarServicio(event)" class="space-y-3">
           <div>
             <label class="block text-xs font-semibold text-gray-600 mb-1">Buscar Vaca (RP o Nombre):</label>
@@ -128,17 +132,31 @@
               <input type="date" id="srv-fecha" onchange="actualizarFPP()" class="w-full p-2.5 text-xs sm:text-sm border rounded-lg">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-gray-500 mb-1">Parto (+283d):</label>
+              <label class="block text-xs font-semibold text-gray-500 mb-1">Parto Estimado (+283d):</label>
               <div id="srv-fpp" class="p-2.5 bg-gray-100 rounded-lg font-bold text-blue-700 text-xs sm:text-sm">-</div>
             </div>
           </div>
-          <button type="submit" class="w-full bg-green-700 text-white font-bold p-3 rounded-lg hover:bg-green-800 text-sm">Registrar Servicio</button>
+          <button type="submit" class="w-full bg-green-700 text-white font-bold p-3 rounded-lg hover:bg-green-800 text-sm shadow">Registrar Servicio</button>
         </form>
       </div>
 
-      <div class="space-y-3">
-        <h3 class="text-sm font-bold text-gray-800">📅 Próximos Partos Registrados</h3>
-        <div id="contenedor-servicios" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+      <!-- BUSCADOR Y FILTROS DE SERVICIOS REGISTRADOS -->
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-3">
+        <div class="flex flex-wrap justify-between items-center gap-2">
+          <h3 class="text-base font-bold text-gray-800 flex items-center gap-1.5">
+            <span>📅</span> Calendario y Próximos Partos
+          </h3>
+          <div class="flex items-center gap-2 w-full sm:w-auto">
+            <label class="text-xs font-bold text-gray-600 shrink-0">Filtrar Mes:</label>
+            <input type="month" id="filtro-mes-parto" onchange="renderizarServicios(serviciosMemoria)" class="p-2 border rounded-lg text-xs bg-gray-50 font-semibold text-gray-800">
+            <button onclick="limpiarFiltroMes()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold px-2.5 py-2 rounded-lg shrink-0">Ver Todos</button>
+          </div>
+        </div>
+
+        <input type="text" id="input-buscar-servicio" oninput="renderizarServicios(serviciosMemoria)" placeholder="🔍 Buscar por Vaca RP, Nombre o Toro..." class="w-full p-2.5 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-green-600 bg-gray-50/50">
+
+        <!-- RESUMEN EN VISTA CALENDARIO / TARJETAS -->
+        <div id="contenedor-servicios" class="space-y-4"></div>
       </div>
     </section>
 
@@ -257,7 +275,7 @@
 
         <div>
           <label class="block text-xs font-semibold text-gray-600 mb-1">HBA Padre:</label>
-          <input type="text" id="nuevo-nac-torohba" class="w-full p-2 text-xs border rounded-lg" placeholder="Ej: COL 916887">
+          <input type="text" id="nuevo-nac-torohba" class="w-full p-2 text-xs border rounded-lg" placeholder="Ej: 91688700">
         </div>
 
         <button type="submit" class="w-full bg-blue-700 text-white font-bold p-2.5 rounded-lg hover:bg-blue-800 text-xs shadow">Guardar y Sincronizar Nacimiento</button>
@@ -599,7 +617,7 @@
         precs: { gest: "0.17", nacer: "0.44", dest: "0.39", leche: "0.26", final: "0.32", ce: "0.27", altura: "0.50", egd: "0.09", egc: "0.09", aob: "0.09", gi: "0.09", cm: "0.09" }, 
         percs: { gest: "60%", nacer: "65%", dest: "70%", leche: "100%", final: "90%", ce: "50%", altura: "10%", egd: "80%", egc: "75%", aob: "80%", gi: "50%", cm: "35%" } 
       },
-      { id: "toro-don-manuel", nombre: "Don Manuel (HERJA PROTOTIPO 224 483 GENTIL)", hba: "COL 916887", rp: "659", fecha_nacimiento: "2024-07-17", padre: "ESENCIAL GENTIL", rp_padre: "555", madre: "HERJA DON EDUARDO 174 GENTIL", rp_madre: "483", pedigree: "Esencial Gentil x Herja Don Eduardo 483", criador: "Cabaña Santa Cándida S.R.L.", propietario: "Cabaña Santa Cándida S.R.L.", sexo: "M", tipo: "Toro Reproductor", es_propio: true, tiene_deps: true, deps: { gest: "+0.8", nacer: "-1.4", dest: "+5.4", leche: "+0.2", final: "+16.6", ce: "+1.1", altura: "+0.8", egd: "+0.15", egc: "+0.46", aob: "+0.04", gi: "-0.4", cm: "-" }, precs: { gest: "0.36", nacer: "0.43", dest: "0.46", leche: "0.31", final: "0.36", ce: "0.20", altura: "0.23", egd: "0.15", egc: "0.17", aob: "0.15", gi: "0.15", cm: "0.15" }, percs: { gest: "100%", nacer: "5%", dest: "55%", leche: "65%", final: "60%", ce: "50%", altura: "90%", egd: "25%", egc: "40%", aob: "30%", gi: "70%", cm: "-" } },
+      { id: "toro-don-manuel", nombre: "Don Manuel (HERJA PROTOTIPO 224 483 GENTIL)", hba: "91688700", rp: "659", fecha_nacimiento: "2024-07-17", padre: "ESENCIAL GENTIL", rp_padre: "555", madre: "HERJA DON EDUARDO 174 GENTIL", rp_madre: "483", pedigree: "Esencial Gentil x Herja Don Eduardo 483", criador: "Cabaña Santa Cándida S.R.L.", propietario: "Cabaña Santa Cándida S.R.L.", sexo: "M", tipo: "Toro Reproductor", es_propio: true, tiene_deps: true, deps: { gest: "+0.8", nacer: "-1.4", dest: "+5.4", leche: "+0.2", final: "+16.6", ce: "+1.1", altura: "+0.8", egd: "+0.15", egc: "+0.46", aob: "+0.04", gi: "-0.4", cm: "-" }, precs: { gest: "0.36", nacer: "0.43", dest: "0.46", leche: "0.31", final: "0.36", ce: "0.20", altura: "0.23", egd: "0.15", egc: "0.17", aob: "0.15", gi: "0.15", cm: "0.15" }, percs: { gest: "100%", nacer: "5%", dest: "55%", leche: "65%", final: "60%", ce: "50%", altura: "90%", egd: "25%", egc: "40%", aob: "30%", gi: "70%", cm: "-" } },
       { id: "toro-735", nombre: "RP 735", hba: "Pendiente", rp: "735", padre: "Halcón", rp_padre: "8554", madre: "262", rp_madre: "262", pedigree: "Halcón x 262 (RP 262)", criador: "Cabaña Santa Cándida", propietario: "Cabaña Santa Cándida", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
       { id: "toro-yanquetruz", nombre: "TRES MARIAS C337 YANQUETRUZ T/E", hba: "888590", rp: "C337", fecha_nacimiento: "2022-04-16", padre: "DON JOSE 176 MAXI-T/E", madre: "TRES MARIAS B074 GARDEL 9946-T/E", pedigree: "Maxi x Gardel x Credito", criador: "Cabaña Tres Marías de Gutiérrez", propietario: "Lenti, Legaccio, Agroganadera Pucon, GENPRO", sexo: "M", tipo: "Toro Reproductor", es_propio: false },
       
@@ -781,7 +799,7 @@
           const { data: srvData, error } = await supabaseClient
             .from('servicios')
             .select('*')
-            .order('fecha_servicio', { ascending: false });
+            .order('fecha_parto_estimada', { ascending: true });
 
           if (!error && srvData) {
             serviciosSupa = srvData;
@@ -1898,31 +1916,98 @@
       document.getElementById("srv-vaca-search").value = rp;
     }
 
+    function limpiarFiltroMes() {
+      const el = document.getElementById("filtro-mes-parto");
+      if (el) el.value = "";
+      renderizarServicios(serviciosMemoria);
+    }
+
     function renderizarServicios(lista) {
       const contenedor = document.getElementById("contenedor-servicios");
       if (!contenedor) return;
+
       if (!lista || lista.length === 0) {
-        contenedor.innerHTML = `<p class="text-xs text-gray-500 col-span-2 text-center py-4 bg-white rounded-xl shadow-sm">No hay servicios registrados.</p>`;
+        contenedor.innerHTML = `<p class="text-xs text-gray-500 text-center py-4 bg-gray-50 rounded-xl">No hay servicios registrados.</p>`;
         return;
       }
-      contenedor.innerHTML = lista.map(s => {
-        const rpVaca = s.rp !== undefined ? s.rp : s.vaca_rp;
-        const animalVaca = ganadoMemoria.find(a => String(a.rp).toLowerCase() === String(rpVaca).toLowerCase());
-        const nombreVacaStr = animalVaca && animalVaca.nombre ? ` (${animalVaca.nombre})` : '';
 
-        return `
-          <div class="p-3.5 rounded-xl border-l-4 shadow-sm bg-white border-l-blue-500 flex justify-between items-start">
-            <div>
-              <h4 class="font-bold text-gray-900 text-xs sm:text-sm">Vaca RP: ${rpVaca || 'N/D'}${nombreVacaStr}</h4>
-              <p class="text-xs text-gray-600">Toro: ${s.toro_utilizado || '-'}</p>
-              <p class="text-xs text-blue-700 font-bold mt-1">FPP: ${s.fecha_parto_estimada || '-'} <span class="text-gray-400 font-normal text-[10px] ml-1">(Servicio: ${s.fecha_servicio || '-'})</span></p>
+      const query = (document.getElementById("input-buscar-servicio")?.value || "").toLowerCase().trim();
+      const filtroMes = document.getElementById("filtro-mes-parto")?.value; // "YYYY-MM"
+
+      let filtrados = lista.filter(s => {
+        const rpVaca = String(s.rp !== undefined ? s.rp : s.vaca_rp || "").toLowerCase();
+        const toro = String(s.toro_utilizado || "").toLowerCase();
+        const animalVaca = ganadoMemoria.find(a => String(a.rp).toLowerCase() === rpVaca);
+        const nomVaca = (animalVaca && animalVaca.nombre ? animalVaca.nombre : "").toLowerCase();
+
+        const matchQuery = !query || rpVaca.includes(query) || toro.includes(query) || nomVaca.includes(query);
+        
+        let matchMes = true;
+        if (filtroMes && s.fecha_parto_estimada) {
+          matchMes = s.fecha_parto_estimada.startsWith(filtroMes);
+        }
+
+        return matchQuery && matchMes;
+      });
+
+      if (filtrados.length === 0) {
+        contenedor.innerHTML = `<p class="text-xs text-gray-500 text-center py-4 bg-gray-50 rounded-xl">No coinciden servicios con la búsqueda o mes seleccionado.</p>`;
+        return;
+      }
+
+      // AGRUPAR POR MES DE PARTO
+      const agrupadosPorMes = {};
+      const nombresMeses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+      filtrados.forEach(s => {
+        let claveMes = "Sin Fecha";
+        if (s.fecha_parto_estimada) {
+          const partes = s.fecha_parto_estimada.split("-");
+          if (partes.length >= 2) {
+            const anio = partes[0];
+            const numMes = parseInt(partes[1], 10) - 1;
+            claveMes = `${nombresMeses[numMes] || 'Mes'} ${anio}`;
+          }
+        }
+        if (!agrupadosPorMes[claveMes]) agrupadosPorMes[claveMes] = [];
+        agrupadosPorMes[claveMes].push(s);
+      });
+
+      let html = "";
+      Object.keys(agrupadosPorMes).forEach(mes => {
+        const items = agrupadosPorMes[mes];
+        html += `
+          <div class="border border-green-100 rounded-xl overflow-hidden bg-white shadow-sm">
+            <div class="bg-green-800 text-white px-3.5 py-2 font-bold text-xs sm:text-sm flex justify-between items-center">
+              <span>📅 Partos Estimados: ${mes}</span>
+              <span class="bg-green-900/80 text-green-200 text-[10px] px-2 py-0.5 rounded-full font-bold">${items.length} vacas</span>
             </div>
-            <button onclick="eliminarServicio('${s.id}')" class="text-red-500 hover:text-red-700 p-1 font-bold text-sm" title="Eliminar servicio">
-              🗑️
-            </button>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3">
+              ${items.map(s => {
+                const rpVaca = s.rp !== undefined ? s.rp : s.vaca_rp;
+                const animalVaca = ganadoMemoria.find(a => String(a.rp).toLowerCase() === String(rpVaca).toLowerCase());
+                const nombreVacaStr = animalVaca && animalVaca.nombre ? ` (${animalVaca.nombre})` : '';
+
+                return `
+                  <div class="p-3 rounded-xl border-l-4 border-l-blue-600 bg-blue-50/40 border border-gray-100 flex justify-between items-start">
+                    <div class="space-y-1">
+                      <h4 class="font-extrabold text-gray-900 text-xs sm:text-sm">Vaca RP: ${rpVaca || 'N/D'}${nombreVacaStr}</h4>
+                      <p class="text-xs text-gray-700 font-semibold">Toro: ${s.toro_utilizado || '-'}</p>
+                      <div class="flex items-center gap-2 pt-0.5">
+                        <span class="text-[11px] bg-blue-100 text-blue-900 px-2 py-0.5 rounded font-bold border border-blue-200">FPP: ${s.fecha_parto_estimada || '-'}</span>
+                        <span class="text-[10px] text-gray-500">Serv: ${s.fecha_servicio || '-'}</span>
+                      </div>
+                    </div>
+                    <button onclick="eliminarServicio('${s.id}')" class="text-red-400 hover:text-red-700 p-1 font-bold text-xs transition-colors" title="Eliminar servicio">🗑️</button>
+                  </div>
+                `;
+              }).join("")}
+            </div>
           </div>
         `;
-      }).join("");
+      });
+
+      contenedor.innerHTML = html;
     }
 
     /* --- ÁRBOL GENEALÓGICO --- */
