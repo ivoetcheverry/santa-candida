@@ -49,7 +49,7 @@
   </header>
 
   <main class="max-w-5xl mx-auto p-3 sm:p-4">
-    <!-- VISTA INVENTARIO (Hembras / Vientres) -->
+    <!-- VISTA INVENTARIO -->
     <section id="vista-inventario" class="space-y-3">
       <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center gap-2">
         <input type="text" id="input-buscar" oninput="filtrarGanado()" placeholder="🔍 Buscar RP, Nombre, Padre o HBA..." class="w-full p-2.5 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-green-600 bg-gray-50/50">
@@ -141,7 +141,7 @@
         </form>
       </div>
 
-      <!-- CALENDARIO TRADICIONAL GRANDE CON LISTAS EN CADA DÍA -->
+      <!-- CALENDARIO TRADICIONAL CON SOPORTE MULTIPLE Y SCROLL -->
       <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
         <div class="flex flex-wrap justify-between items-center gap-3 border-b pb-3">
           <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
@@ -599,7 +599,7 @@
 
   <script>
     let ganadoMemoria = [];
-    let serviciosMemoria = []; // Limpio de datos falsos, cargará puramente de Supabase/LocalStorage real
+    let serviciosMemoria = []; // Vacío por defecto: SOLO lee de Supabase
     let nacimientosMemoria = [];
     let animalActual = null;
     let toroActual = null;
@@ -681,6 +681,9 @@
     ];
 
     document.addEventListener("DOMContentLoaded", () => {
+      // Limpiar basura anterior de localStorage si existiera
+      localStorage.removeItem("servicios_santa_candida");
+
       const hoy = new Date().toISOString().split("T")[0];
       const inputFecha = document.getElementById("srv-fecha");
       if (inputFecha) {
@@ -803,17 +806,8 @@
         }
       }
 
-      const serviciosStorage = JSON.parse(localStorage.getItem("servicios_santa_candida") || "[]");
-      
-      let combinados = [...serviciosSupa, ...serviciosStorage];
-      const unicosMap = new Map();
-      combinados.forEach(s => {
-        const key = s.id || (String(s.rp) + String(s.fecha_parto_estimada));
-        unicosMap.set(key, s);
-      });
-      
-      serviciosMemoria = Array.from(unicosMap.values());
-      localStorage.setItem("servicios_santa_candida", JSON.stringify(serviciosMemoria));
+      // LEER ÚNICAMENTE DE SUPABASE DIRECTO (Sin mezclar con localStorage de pruebas anteriores)
+      serviciosMemoria = serviciosSupa;
       renderizarCalendarioPartos();
     }
 
@@ -1836,9 +1830,6 @@
         estado: "pendiente"
       };
 
-      serviciosMemoria.push(servicio);
-      localStorage.setItem("servicios_santa_candida", JSON.stringify(serviciosMemoria));
-
       if (typeof supabaseClient !== 'undefined') {
         try {
           await supabaseClient.from('servicios').insert([servicio]);
@@ -1847,8 +1838,8 @@
         }
       }
 
-      renderizarCalendarioPartos();
-      alert("✅ Servicio guardado con éxito.");
+      await recargarServiciosDesdeSupa();
+      alert("✅ Servicio guardado y sincronizado con Supabase.");
       document.getElementById("form-servicio").reset();
       actualizarFPP();
       document.getElementById("srv-vaca-sel").innerText = "";
@@ -1859,9 +1850,6 @@
     async function eliminarServicio(idServicio) {
       if (!confirm("¿Estás seguro de que deseas eliminar este servicio?")) return;
 
-      serviciosMemoria = serviciosMemoria.filter(s => s.id !== idServicio);
-      localStorage.setItem("servicios_santa_candida", JSON.stringify(serviciosMemoria));
-
       if (typeof supabaseClient !== 'undefined') {
         try {
           await supabaseClient.from('servicios').delete().eq('id', idServicio);
@@ -1870,7 +1858,7 @@
         }
       }
 
-      renderizarCalendarioPartos();
+      await recargarServiciosDesdeSupa();
       if (toroActual) renderServiciosToro();
     }
 
@@ -1963,7 +1951,7 @@
         const hoyStr = new Date().toISOString().split("T")[0];
 
         for (let i = 0; i < diaInicioSemana; i++) {
-          diasHtml += `<div class="min-h-[110px] sm:min-h-[130px] bg-gray-50/50 rounded-xl border border-dashed border-gray-200"></div>`;
+          diasHtml += `<div class="min-h-[120px] sm:min-h-[140px] bg-gray-50/50 rounded-xl border border-dashed border-gray-200"></div>`;
         }
 
         for (let d = 1; d <= ultimoDiaMes; d++) {
@@ -1975,7 +1963,7 @@
           const esHoy = (fechaStr === hoyStr);
           const tienePartos = partosDia.length > 0;
 
-          let clasesCelda = "min-h-[110px] sm:min-h-[130px] p-2 rounded-xl border flex flex-col justify-between transition-all ";
+          let clasesCelda = "min-h-[120px] sm:min-h-[140px] p-2 rounded-xl border flex flex-col justify-between transition-all ";
           if (esHoy) {
             clasesCelda += "bg-amber-50/60 border-amber-400 ring-2 ring-amber-200 shadow-sm";
           } else if (tienePartos) {
@@ -1987,11 +1975,11 @@
           let listaServiciosHtml = "";
           if (tienePartos) {
             listaServiciosHtml = `
-              <div class="space-y-1 overflow-y-auto max-h-[75px] sm:max-h-[90px] no-scrollbar touch-scroll mt-1">
+              <div class="space-y-1 overflow-y-auto max-h-[85px] sm:max-h-[100px] touch-scroll mt-1 pr-0.5">
                 ${partosDia.map(s => {
                   const rpVaca = s.rp !== undefined ? s.rp : s.vaca_rp;
                   return `
-                    <div class="bg-white/90 border border-green-200 p-1 rounded text-[10px] shadow-2xs">
+                    <div class="bg-white border border-green-300 p-1 rounded text-[10px] shadow-2xs">
                       <div class="font-extrabold text-green-900 truncate">🐄 RP: ${rpVaca}</div>
                       <div class="text-gray-600 truncate text-[9px]">${s.toro_utilizado || 'Toro N/D'}</div>
                     </div>
@@ -2058,7 +2046,7 @@
 
       const card = document.getElementById("arbol-card");
       document.getElementById("arb-nombre").innerText = animal.nombre || "Sin Nombre";
-      document.getElementById("arb-sub").innerText = `RP: ${animal.rp || '-'} | HBA: ${animal.hba || '-'}`;
+      document.getElementById("arb-sub").innerText = `RP: ${animal.rp || '-'} | HBA: ${animal.hBA || '-'}`;
 
       document.getElementById("arb-padre-nom").innerText = animal.padre || animal.nombre_padre || "No registrado";
       document.getElementById("arb-padre-rp").innerText = animal.rp_padre ? `RP: ${animal.rp_padre}` : "";
