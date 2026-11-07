@@ -431,17 +431,18 @@
     let modoCalendarioActual = 'servicios';
     let fechaCalendarioActual = new Date(2026, 10, 1);
 
-    const TOROS_CATALOGO_INICIAL = [
-      { id: "toro-escolta", nombre: "LUQUENSE 2389 ENTRADOR 1590-T/E (ESCOLTA)", hba: "858602", rp: "2389", sexo: "M", tipo: "Toro Reproductor", frame: 4, circunferencia_escrotal: 44, fecha_nacimiento: "03/08/2018", peso_nacer: 42, peso_205d: 270, peso_maduro: 1045, criador: "Ganaderal del Villaguay S.A.", propietario: "Cabaña Tres Colonias / Cabaña Santa Juana / Nestor Geronimo Miño / Jorge Mariano Neifert", padre: "ENTRADOR X IMPACTO X PUCARA", madre: "TRES MARIAS 8588 DAKTARI 8092", tiene_deps: true, deps: { gest: "+0.3", nacer: "+1.2", dest: "+7.5", final: "+40.8", ce: "+2.0", altura: "+3.2", leche: "-0.8" } },
-      { id: "toro-don-eduardo", nombre: "HERJA DON EDUARDO", hba: "824050", rp: "111", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
-      { id: "toro-don-manuel", nombre: "Don Manuel (HERJA PROTOTIPO 224 483 GENTIL)", hba: "91688700", rp: "659", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
-      { id: "toro-735", nombre: "RP 735", hba: "Pendiente", rp: "735", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
-      { id: "toro-yanquetruz", nombre: "TRES MARIAS C337 YANQUETRUZ T/E", hba: "888590", rp: "C337", sexo: "M", tipo: "Toro Reproductor", es_propio: false },
-      { id: "toro-gardel", nombre: "TRES MARIAS A689 GARDEL", hba: "830039", rp: "A689", sexo: "M", tipo: "Toro Reproductor", es_propio: false },
-      { id: "toro-779", nombre: "RP 779", hba: "920985", rp: "779", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
-      { id: "toro-631", nombre: "HERJA ZORZAL 407 ÑATO T/E", hba: "901597", rp: "631", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
-      { id: "toro-595", nombre: "Tano", hba: "Pendiente", rp: "595", sexo: "M", tipo: "Toro Reproductor", es_propio: true }
-    ];
+    // Diccionario completo con la información técnica del catálogo
+    const CATALOGO_TOROS_INFO = {
+      "2389": { id: "toro-escolta", nombre: "LUQUENSE 2389 ENTRADOR 1590-T/E (ESCOLTA)", hba: "858602", rp: "2389", sexo: "M", tipo: "Toro Reproductor", frame: 4, circunferencia_escrotal: 44, fecha_nacimiento: "03/08/2018", peso_nacer: 42, peso_205d: 270, peso_maduro: 1045, criador: "Ganaderal del Villaguay S.A.", propietario: "Cabaña Tres Colonias / Cabaña Santa Juana / Nestor Geronimo Miño / Jorge Mariano Neifert", padre: "ENTRADOR X IMPACTO X PUCARA", madre: "TRES MARIAS 8588 DAKTARI 8092", tiene_deps: true, deps: { gest: "+0.3", nacer: "+1.2", dest: "+7.5", final: "+40.8", ce: "+2.0", altura: "+3.2", leche: "-0.8" } },
+      "111": { id: "toro-don-eduardo", nombre: "HERJA DON EDUARDO", hba: "824050", rp: "111", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
+      "659": { id: "toro-don-manuel", nombre: "Don Manuel (HERJA PROTOTIPO 224 483 GENTIL)", hba: "91688700", rp: "659", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
+      "735": { id: "toro-735", nombre: "RP 735", hba: "Pendiente", rp: "735", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
+      "c337": { id: "toro-yanquetruz", nombre: "TRES MARIAS C337 YANQUETRUZ T/E", hba: "888590", rp: "C337", sexo: "M", tipo: "Toro Reproductor", es_propio: false },
+      "a689": { id: "toro-gardel", nombre: "TRES MARIAS A689 GARDEL", hba: "830039", rp: "A689", sexo: "M", tipo: "Toro Reproductor", es_propio: false },
+      "779": { id: "toro-779", nombre: "RP 779", hba: "920985", rp: "779", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
+      "631": { id: "toro-631", nombre: "HERJA ZORZAL 407 ÑATO T/E", hba: "901597", rp: "631", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
+      "595": { id: "toro-595", nombre: "Tano", hba: "Pendiente", rp: "595", sexo: "M", tipo: "Toro Reproductor", es_propio: true }
+    };
 
     document.addEventListener("DOMContentLoaded", () => {
       const hoy = new Date().toISOString().split("T")[0];
@@ -508,11 +509,20 @@
         }
 
         let baseGanado = Array.isArray(ganadoSupa) ? [...ganadoSupa] : [];
-        TOROS_CATALOGO_INICIAL.forEach(toroCat => {
-          const idx = baseGanado.findIndex(a => String(a.rp).toLowerCase() === String(toroCat.rp).toLowerCase() || (a.id && a.id === toroCat.id));
-          if (idx !== -1) {
-            baseGanado[idx] = { ...toroCat, ...baseGanado[idx] };
-          } else {
+
+        // Combinar datos de Supabase con los detalles técnicos del catálogo
+        baseGanado = baseGanado.map(animal => {
+          const rpKey = String(animal.rp || "").toLowerCase().trim();
+          if (CATALOGO_TOROS_INFO[rpKey]) {
+            return { ...CATALOGO_TOROS_INFO[rpKey], ...animal };
+          }
+          return animal;
+        });
+
+        // Asegurar que todos los toros base del catálogo estén siempre presentes
+        Object.keys(CATALOGO_TOROS_INFO).forEach(rpKey => {
+          const toroCat = CATALOGO_TOROS_INFO[rpKey];
+          if (!baseGanado.some(a => String(a.rp).toLowerCase().trim() === rpKey)) {
             baseGanado.push(toroCat);
           }
         });
@@ -620,14 +630,13 @@
 
     function esToroReproductor(a) {
       if (!a) return false;
-      const rp = String(a.rp || "").toLowerCase();
+      const rp = String(a.rp || "").toLowerCase().trim();
       const tipo = String(a.tipo || "").toLowerCase();
       const sexo = String(a.sexo || "").toLowerCase();
-      const nombre = String(a.nombre || "").toLowerCase();
-      const esDelCatalogoToros = TOROS_CATALOGO_INICIAL.some(tc => String(tc.rp).toLowerCase() === rp || tc.id === a.id);
-      if (esDelCatalogoToros) return true;
-      if ((tipo.includes("toro") || tipo.includes("reproductor") || sexo === "m" || sexo === "macho") && !tipo.includes("vaca") && !tipo.includes("vientre")) {
-        if (!nombre.includes("herja") && !nombre.includes("candida")) return true;
+      
+      if (CATALOGO_TOROS_INFO[rp]) return true;
+      if (tipo.includes("toro") || tipo.includes("reproductor") || sexo === "m" || sexo === "macho") {
+        if (!tipo.includes("vaca") && !tipo.includes("vientre") && !tipo.includes("vaquillona")) return true;
       }
       return false;
     }
@@ -707,7 +716,7 @@
           <th class="p-2.5 sm:p-3 font-bold text-blue-900">${toro.rp || "-"}</th>
           <td class="p-2.5 sm:p-3 font-semibold">${toro.nombre || "-"}</td>
           <td class="p-2.5 sm:p-3 text-gray-600">${toro.hba || "-"}</td>
-          <td class="p-2.5 sm:p-3 font-bold">${toro.circunferencia_escrotal || toro.ce ? (toro.circunferencia_escrotal || toro.ce) + " cm" : "-"}</td>
+          <td class="p-2.5 sm:p-3 font-bold">${toro.circunferencia_escrotal && toro.circunferencia_escrotal !== "N/D" ? toro.circunferencia_escrotal + " cm" : "-"}</td>
           <td class="p-2.5 sm:p-3"><span class="bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded-full font-bold">Toro</span></td>
         `;
         tbody.appendChild(tr);
@@ -723,26 +732,29 @@
 
     function abrirFichaToro(toro) {
       toroActual = toro;
-      document.getElementById("toro-rp").innerText = toro.rp || "-";
-      document.getElementById("toro-nombre").innerText = toro.nombre || "Sin nombre";
-      document.getElementById("toro-hba").innerText = toro.hba || "-";
-      document.getElementById("toro-ce").innerText = toro.circunferencia_escrotal ? toro.circunferencia_escrotal + " cm" : "-";
-      document.getElementById("toro-frame").innerText = toro.frame || "-";
-      document.getElementById("toro-fnac").innerText = toro.fecha_nacimiento || "-";
-      document.getElementById("toro-pnacer").innerText = toro.peso_nacer ? toro.peso_nacer + " kg" : "-";
-      document.getElementById("toro-p205d").innerText = toro.peso_205d ? toro.peso_205d + " kg" : "-";
-      document.getElementById("toro-pmaduro").innerText = toro.peso_maduro ? toro.peso_maduro + " kg" : "-";
-      document.getElementById("toro-padre-nom").innerText = toro.padre || "-";
-      document.getElementById("toro-madre-nom").innerText = toro.madre || "-";
-      document.getElementById("toro-criador").innerText = toro.criador || "-";
-      document.getElementById("toro-propietario").innerText = toro.propietario || "-";
+      const rpKey = String(toro.rp || "").toLowerCase().trim();
+      const infoCompleta = CATALOGO_TOROS_INFO[rpKey] || toro;
+
+      document.getElementById("toro-rp").innerText = infoCompleta.rp || "-";
+      document.getElementById("toro-nombre").innerText = infoCompleta.nombre || "Sin nombre";
+      document.getElementById("toro-hba").innerText = infoCompleta.hba || "-";
+      document.getElementById("toro-ce").innerText = infoCompleta.circunferencia_escrotal && infoCompleta.circunferencia_escrotal !== "N/D" ? infoCompleta.circunferencia_escrotal + " cm" : "-";
+      document.getElementById("toro-frame").innerText = infoCompleta.frame || "-";
+      document.getElementById("toro-fnac").innerText = infoCompleta.fecha_nacimiento && infoCompleta.fecha_nacimiento !== "N/D" ? infoCompleta.fecha_nacimiento : "-";
+      document.getElementById("toro-pnacer").innerText = infoCompleta.peso_nacer ? infoCompleta.peso_nacer + " kg" : "-";
+      document.getElementById("toro-p205d").innerText = infoCompleta.peso_205d ? infoCompleta.peso_205d + " kg" : "-";
+      document.getElementById("toro-pmaduro").innerText = infoCompleta.peso_maduro ? infoCompleta.peso_maduro + " kg" : "-";
+      document.getElementById("toro-padre-nom").innerText = infoCompleta.padre || "-";
+      document.getElementById("toro-madre-nom").innerText = infoCompleta.madre || "-";
+      document.getElementById("toro-criador").innerText = infoCompleta.criador || "-";
+      document.getElementById("toro-propietario").innerText = infoCompleta.propietario || "-";
 
       const contenedorDeps = document.getElementById("contenedor-deps-era");
-      if (toro.tiene_deps && toro.deps) {
+      if (infoCompleta.tiene_deps && infoCompleta.deps) {
         contenedorDeps.classList.remove("hidden");
         ['gest', 'nacer', 'dest', 'final', 'ce', 'altura', 'leche'].forEach(k => {
           const el = document.getElementById(`dep-${k}`);
-          if (el) el.innerText = toro.deps[k] || "-";
+          if (el) el.innerText = infoCompleta.deps[k] || "-";
         });
       } else {
         contenedorDeps.classList.add("hidden");
