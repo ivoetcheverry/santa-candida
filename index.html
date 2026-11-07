@@ -137,7 +137,12 @@
       </div>
 
       <div class="space-y-3">
-        <h3 class="text-sm font-bold text-gray-800">📅 Próximos Partos Registrados</h3>
+        <div class="flex justify-between items-center">
+          <h3 class="text-sm font-bold text-gray-800">📅 Próximos Partos Registrados</h3>
+          <button onclick="abrirModalCalendario()" class="bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow transition-all">
+            📅 Ver Calendario Completo
+          </button>
+        </div>
         <div id="contenedor-servicios" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
       </div>
     </section>
@@ -206,6 +211,32 @@
       </div>
     </section>
   </main>
+
+  <!-- MODAL CALENDARIO GRANDE DE SERVICIOS / PARTOS -->
+  <div id="modal-calendario" class="fixed inset-0 bg-black/60 hidden z-50 flex items-center justify-center p-2 sm:p-4">
+    <div class="bg-white rounded-2xl max-w-3xl w-full p-4 sm:p-6 space-y-4 shadow-2xl relative max-h-[92vh] overflow-y-auto touch-scroll">
+      <button onclick="cerrarModalCalendario()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 font-bold text-xl p-1">✕</button>
+      
+      <div class="flex justify-between items-center border-b pb-3">
+        <h2 class="text-base sm:text-lg font-extrabold text-gray-900 flex items-center gap-2">
+          📅 Calendario de Partos Previstos (FPP)
+        </h2>
+        <div class="flex items-center gap-2">
+          <button onclick="cambiarMesCalendario(-1)" class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold px-3 py-1.5 rounded-lg text-xs">◀ Mes Anterior</button>
+          <span id="cal-mes-anio" class="font-bold text-sm sm:text-base text-green-800 min-w-[140px] text-center"></span>
+          <button onclick="cambiarMesCalendario(1)" class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold px-3 py-1.5 rounded-lg text-xs">Mes Siguiente ▶</button>
+        </div>
+      </div>
+
+      <!-- Días de la semana -->
+      <div class="grid grid-cols-7 gap-1 text-center font-bold text-[10px] sm:text-xs text-gray-500 uppercase bg-gray-50 p-2 rounded-lg">
+        <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
+      </div>
+
+      <!-- Grilla del Calendario -->
+      <div id="cal-grilla" class="grid grid-cols-7 gap-1 min-h-[360px]"></div>
+    </div>
+  </div>
 
   <!-- MODAL NUEVO NACIMIENTO -->
   <div id="modal-nuevo-nacimiento" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-3 sm:p-4">
@@ -578,6 +609,7 @@
     let toroActual = null;
     let visorFotosActuales = [];
     let visorIndiceActual = 0;
+    let fechaCalendarioActual = new Date();
 
     const TOROS_CATALOGO_INICIAL = [
       { 
@@ -599,7 +631,7 @@
         propietario: "Cabaña Tres Colonias / Cabaña Santa Juana / Nestor Geronimo Miño / Jorge Mariano Neifert", 
         sexo: "M", 
         tipo: "Toro Reproductor", 
-        es_propio: true, 
+        es_propio: false, 
         tiene_deps: true, 
         deps: { gest: "+0.3", nacer: "+1.2", dest: "+7.5", leche: "-0.8", final: "+40.8", ce: "+2.0", altura: "+3.2", egd: "-", egc: "-", aob: "-", gi: "-", cm: "-" }, 
         precs: { gest: "0.55", nacer: "0.78", dest: "0.75", leche: "0.45", final: "0.65", ce: "0.70", altura: "0.72", egd: "-", egc: "-", aob: "-", gi: "-", cm: "-" }, 
@@ -668,7 +700,7 @@
         rp_padre: "C237",
         madre: "TRES MARIAS B026 GARDEL 9580-T/E", 
         rp_madre: "B026",
-        pedigree: "Centenario (Don Raul x Gardel) x Gardel x (Federal x Zorzal)", 
+        pedigree: "Centenario x Gardel x Zorzal", 
         criador: "Cabaña Tres Marías S.A.", 
         propietario: "No informado", 
         sexo: "M", 
@@ -1273,7 +1305,19 @@
           boxMadre.className = "bg-pink-50 p-2.5 rounded-xl border border-pink-100 transition-colors";
         }
       } else {
-        contenedorPadres.classList.add("hidden");
+        /* TOROS AJENOS / EXTERNOS: BLOQUEAR TOTALMENTE NAVEGACION */
+        contenedorPadres.classList.remove("hidden");
+        document.getElementById("toro-padre-nom").innerText = toro.padre || "No registrado";
+        document.getElementById("toro-padre-rp").innerText = toro.rp_padre ? `RP: ${toro.rp_padre}` : "";
+        const boxPadre = document.getElementById("toro-box-padre");
+        boxPadre.onclick = null;
+        boxPadre.className = "bg-blue-50 p-2.5 rounded-xl border border-blue-100 transition-colors";
+
+        document.getElementById("toro-madre-nom").innerText = toro.madre || "No registrada";
+        document.getElementById("toro-madre-rp").innerText = toro.rp_madre ? `RP: ${toro.rp_madre}` : "";
+        const boxMadre = document.getElementById("toro-box-madre");
+        boxMadre.onclick = null;
+        boxMadre.className = "bg-pink-50 p-2.5 rounded-xl border border-pink-100 transition-colors";
       }
 
       const img = document.getElementById("toro-img");
@@ -1544,7 +1588,7 @@
           const nuevaImg = document.createElement("img");
           nuevaImg.id = "visor-img-grande";
           nuevaImg.className = "max-h-[80vh] max-w-full object-contain rounded-lg";
-          if (elementoVisual) elementoVisual.replaceWith(nuevaImg);
+          if (elementoVisual) nuevaImg.replaceWith(nuevaImg);
           elementoVisual = nuevaImg;
         }
         elementoVisual.src = urlArchivo;
@@ -1958,6 +2002,91 @@
           </div>
         `;
       }).join("");
+    }
+
+    /* --- CALENDARIO GRANDE INTERACTIVO --- */
+    function abrirModalCalendario() {
+      fechaCalendarioActual = new Date();
+      renderizarCalendarioGrande();
+      document.getElementById("modal-calendario").classList.remove("hidden");
+    }
+
+    function cerrarModalCalendario() {
+      document.getElementById("modal-calendario").classList.add("hidden");
+    }
+
+    function cambiarMesCalendario(delta) {
+      fechaCalendarioActual.setMonth(fechaCalendarioActual.getMonth() + delta);
+      renderizarCalendarioGrande();
+    }
+
+    function renderizarCalendarioGrande() {
+      const anio = fechaCalendarioActual.getFullYear();
+      const mes = fechaCalendarioActual.getMonth();
+
+      const nombresMeses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+      document.getElementById("cal-mes-anio").innerText = `${nombresMeses[mes]} ${anio}`;
+
+      const primerDiaMes = new Date(anio, mes, 1);
+      const ultimoDiaMes = new Date(anio, mes + 1, 0);
+
+      let primerDiaSemana = primerDiaMes.getDay() - 1; // Lunes como inicio
+      if (primerDiaSemana === -1) primerDiaSemana = 6;
+
+      const totalDiasMes = ultimoDiaMes.getDate();
+      const grilla = document.getElementById("cal-grilla");
+      if (!grilla) return;
+
+      let html = "";
+
+      // Días vacíos del mes anterior
+      let ultimoDiaMesAnt = new Date(anio, mes, 0).getDate();
+      for (let i = primerDiaSemana - 1; i >= 0; i--) {
+        const diaNum = ultimoDiaMesAnt - i;
+        html += `<div class="bg-gray-50/50 border rounded-lg p-1.5 min-h-[85px] text-gray-300 select-none"><span class="text-[10px] font-bold">${diaNum}</span></div>`;
+      }
+
+      // Días del mes actual
+      const hoyStr = new Date().toISOString().split("T")[0];
+
+      for (let dia = 1; dia <= totalDiasMes; dia++) {
+        const mesStr = String(mes + 1).padStart(2, '0');
+        const diaStr = String(dia).padStart(2, '0');
+        const fechaActualStr = `${anio}-${mesStr}-${diaStr}`;
+        const esHoy = fechaActualStr === hoyStr;
+
+        // Buscar servicios cuya FPP coincida con este día
+        const eventosDelDia = serviciosMemoria.filter(s => s.fecha_parto_estimada === fechaActualStr);
+
+        let eventosHtml = eventosDelDia.map(ev => {
+          const rpVaca = ev.rp !== undefined ? ev.rp : ev.vaca_rp;
+          return `
+            <div class="bg-blue-600 text-white text-[9px] font-bold p-1 rounded mt-1 shadow-sm truncate" title="Parto Vaca RP: ${rpVaca} | Toro: ${ev.toro_utilizado || '-'}">
+              🐄 RP ${rpVaca}
+            </div>
+          `;
+        }).join("");
+
+        const claseHoy = esHoy ? "border-2 border-green-600 bg-green-50/30" : "bg-white border-gray-200";
+
+        html += `
+          <div class="${claseHoy} border rounded-lg p-1.5 min-h-[85px] flex flex-col justify-between overflow-hidden">
+            <span class="text-[11px] font-extrabold ${esHoy ? 'bg-green-700 text-white px-1 rounded-full w-5 h-5 flex items-center justify-center' : 'text-gray-700'}">${dia}</span>
+            <div class="space-y-0.5 overflow-y-auto max-h-[60px] no-scrollbar">
+              ${eventosHtml}
+            </div>
+          </div>
+        `;
+      }
+
+      // Rellenar días restantes para completar la cuadrícula
+      const totalCeldasRelleno = (primerDiaSemana + totalDiasMes > 35) ? 42 : 35;
+      const celdasActuales = primerDiaSemana + totalDiasMes;
+      for (let i = 1; i <= (totalCeldasRelleno - celdasActuales); i++) {
+        html += `<div class="bg-gray-50/50 border rounded-lg p-1.5 min-h-[85px] text-gray-300 select-none"><span class="text-[10px] font-bold">${i}</span></div>`;
+      }
+
+      grilla.innerHTML = html;
     }
 
     /* --- ÁRBOL GENEALÓGICO --- */
