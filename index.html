@@ -244,6 +244,30 @@
     </div>
   </div>
 
+  <!-- MODAL DETALLE DE DIA (PANTALLA COMPLETA AL TOCAR UN DIA) -->
+  <div id="modal-detalle-dia" class="fixed inset-0 bg-black/60 hidden z-[60] flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-2xl relative max-h-[90vh] overflow-y-auto touch-scroll">
+      <button onclick="cerrarModalDetalleDia()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 font-bold text-xl p-1">✕</button>
+      
+      <div class="border-b pb-3">
+        <span class="text-[10px] font-bold text-green-800 uppercase tracking-wider">Detalle de la Jornada</span>
+        <h2 id="det-dia-titulo" class="text-base sm:text-lg font-extrabold text-gray-900 mt-0.5"></h2>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <h3 class="text-xs font-bold text-green-900 uppercase mb-2">🧬 Servicios Realizados en el Día</h3>
+          <div id="det-dia-servicios" class="space-y-2"></div>
+        </div>
+
+        <div class="pt-2 border-t">
+          <h3 class="text-xs font-bold text-blue-900 uppercase mb-2">🐄 Partos Previstos (FPP) en el Día</h3>
+          <div id="det-dia-partos" class="space-y-2"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL NUEVO NACIMIENTO -->
   <div id="modal-nuevo-nacimiento" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-3 sm:p-4">
     <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl relative max-h-[92vh] overflow-y-auto touch-scroll">
@@ -2086,7 +2110,7 @@
         const claseHoy = esHoy ? "border-2 border-green-600 bg-green-50/30" : "bg-white border-gray-200";
 
         html += `
-          <div class="${claseHoy} border rounded-lg p-1.5 min-h-[95px] flex flex-col justify-between overflow-hidden">
+          <div onclick="abrirDetalleDia('${fechaActualStr}')" class="${claseHoy} border rounded-lg p-1.5 min-h-[95px] flex flex-col justify-between overflow-hidden cursor-pointer hover:bg-green-50/60 transition-colors shadow-sm">
             <span class="text-[11px] font-extrabold ${esHoy ? 'bg-green-700 text-white px-1 rounded-full w-5 h-5 flex items-center justify-center' : 'text-gray-700'}">${dia}</span>
             <div class="space-y-0.5 overflow-y-auto max-h-[70px] no-scrollbar">
               ${serviciosHtml}
@@ -2104,6 +2128,61 @@
       }
 
       grilla.innerHTML = html;
+    }
+
+    function abrirDetalleDia(fechaStr) {
+      const [anio, mes, dia] = fechaStr.split("-");
+      document.getElementById("det-dia-titulo").innerText = `${dia}/${mes}/${anio}`;
+
+      const serviciosDelDia = serviciosMemoria.filter(s => s.fecha_servicio === fechaStr);
+      const partosDelDia = serviciosMemoria.filter(s => s.fecha_parto_estimada === fechaStr);
+
+      const containerServicios = document.getElementById("det-dia-servicios");
+      if (serviciosDelDia.length === 0) {
+        containerServicios.innerHTML = `<p class="text-xs text-gray-400 italic">No hay servicios registrados en este día.</p>`;
+      } else {
+        containerServicios.innerHTML = serviciosDelDia.map(s => {
+          const rpVaca = s.rp !== undefined ? s.rp : s.vaca_rp;
+          const tipoServ = s.tipo_servicio || 'IA';
+          const toroUso = s.toro_utilizado || 'No especificado';
+          return `
+            <div class="bg-green-50/70 border border-green-200 p-3 rounded-xl space-y-1 shadow-sm">
+              <div class="flex justify-between items-center">
+                <span class="font-extrabold text-green-900 text-xs sm:text-sm">Vaca RP: ${rpVaca}</span>
+                <span class="bg-green-700 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">${tipoServ}</span>
+              </div>
+              <p class="text-xs text-gray-700"><span class="font-semibold text-gray-900">Toro / Semen:</span> ${toroUso}</p>
+            </div>
+          `;
+        }).join("");
+      }
+
+      const containerPartos = document.getElementById("det-dia-partos");
+      if (partosDelDia.length === 0) {
+        containerPartos.innerHTML = `<p class="text-xs text-gray-400 italic">No hay partos previstos (FPP) para este día.</p>`;
+      } else {
+        containerPartos.innerHTML = partosDelDia.map(s => {
+          const rpVaca = s.rp !== undefined ? s.rp : s.vaca_rp;
+          const tipoServ = s.tipo_servicio || 'IA';
+          const toroUso = s.toro_utilizado || 'No especificado';
+          return `
+            <div class="bg-blue-50/70 border border-blue-200 p-3 rounded-xl space-y-1 shadow-sm">
+              <div class="flex justify-between items-center">
+                <span class="font-extrabold text-blue-900 text-xs sm:text-sm">Vaca RP: ${rpVaca}</span>
+                <span class="bg-blue-700 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">Parto FPP (${tipoServ})</span>
+              </div>
+              <p class="text-xs text-gray-700"><span class="font-semibold text-gray-900">Toro utilizado:</span> ${toroUso}</p>
+              <p class="text-[11px] text-gray-500">Fecha del servicio original: ${s.fecha_servicio || '-'}</p>
+            </div>
+          `;
+        }).join("");
+      }
+
+      document.getElementById("modal-detalle-dia").classList.remove("hidden");
+    }
+
+    function cerrarModalDetalleDia() {
+      document.getElementById("modal-detalle-dia").classList.add("hidden");
     }
 
     /* --- ÁRBOL GENEALÓGICO --- */
