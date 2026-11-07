@@ -136,16 +136,16 @@
       </div>
 
       <div class="space-y-3">
-        <div class="flex flex-wrap justify-between items-center gap-2">
-          <h3 class="text-sm font-bold text-gray-800">📅 Próximos Partos y Servicios Registrados</h3>
+        <div class="flex justify-between items-center flex-wrap gap-2">
+          <h3 class="text-sm font-bold text-gray-800">📅 Próximos Partos Registrados</h3>
           <button onclick="abrirModalCalendario()" class="bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow transition-all">
             📅 Ver Calendario Completo
           </button>
         </div>
         
-        <!-- BUSCADOR POR RP DE VACA EN SECCION SERVICIOS -->
+        <!-- BUSCADOR POR RP DE VACA EN SECCIÓN DE SERVICIOS -->
         <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-          <input type="text" id="input-buscar-servicio" oninput="filtrarServiciosRegistrados()" placeholder="🔍 Buscar por RP de Vaca o Toro..." class="w-full p-2.5 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-green-600 bg-gray-50/50">
+          <input type="text" id="input-buscar-servicio" oninput="filtrarServiciosLista()" placeholder="🔍 Filtrar servicios o partos por RP de Vaca..." class="w-full p-2.5 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-green-600 bg-gray-50/50">
         </div>
 
         <div id="contenedor-servicios" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
@@ -275,31 +275,29 @@
     let serviciosMemoria = [];
     let fechaDetalleActualStr = null;
 
-    const TOROS_CATALOGO_INICIAL = [
-      { id: "toro-escolta", nombre: "LUQUENSE 2389 ENTRADOR 1590-T/E (ESCOLTA)", hba: "858602", rp: "2389", sexo: "M", tipo: "Toro Reproductor" },
-      { id: "toro-don-eduardo", nombre: "HERJA DON EDUARDO", hba: "824050", rp: "111", sexo: "M", tipo: "Toro Reproductor" },
-      { id: "toro-don-manuel", nombre: "Don Manuel (HERJA PROTOTIPO 224 483 GENTIL)", hba: "91688700", rp: "659", sexo: "M", tipo: "Toro Reproductor" },
-      { id: "toro-631", nombre: "HERJA ZORZAL 407 ÑATO T/E", hba: "901597", rp: "631", sexo: "M", tipo: "Toro Reproductor" }
-    ];
-
     document.addEventListener("DOMContentLoaded", () => {
       cargarDatosSeguro();
     });
 
     async function cargarDatosSeguro() {
       let serviciosSupa = [];
+      let ganadoSupa = [];
+
       if (typeof supabaseClient !== 'undefined') {
         try {
-          const { data, error } = await supabaseClient.from('servicios').select('*');
-          if (!error && data) {
-            serviciosSupa = data;
-            localStorage.setItem("servicios_santa_candida", JSON.stringify(serviciosSupa));
-          }
+          const { data: srvData } = await supabaseClient.from('servicios').select('*');
+          if (srvData) serviciosSupa = srvData;
+
+          const { data: ganData } = await supabaseClient.from('ganado').select('*');
+          if (ganData) ganadoSupa = ganData;
         } catch (e) {
           console.error(e);
         }
       }
+
       serviciosMemoria = serviciosSupa.length > 0 ? serviciosSupa : JSON.parse(localStorage.getItem("servicios_santa_candida") || "[]");
+      ganadoMemoria = ganadoSupa.length > 0 ? ganadoSupa : JSON.parse(localStorage.getItem("ganado_santa_candida") || "[]");
+      
       renderizarServicios(serviciosMemoria);
     }
 
@@ -315,55 +313,7 @@
           console.error(e);
         }
       }
-      filtrarServiciosRegistrados();
-    }
-
-    function filtrarServiciosRegistrados() {
-      const inputB = document.getElementById("input-buscar-servicio");
-      if (!inputB) return;
-      const q = inputB.value.trim().toLowerCase();
-
-      if (!q) {
-        renderizarServicios(serviciosMemoria);
-        return;
-      }
-
-      const filtrados = serviciosMemoria.filter(s => {
-        const rpVaca = String(s.rp !== undefined ? s.rp : (s.vaca_rp || '')).toLowerCase();
-        const toroUso = String(s.toro_utilizado || '').toLowerCase();
-        return rpVaca.includes(q) || toroUso.includes(q);
-      });
-
-      renderizarServicios(filtrados);
-    }
-
-    function renderizarServicios(lista) {
-      const contenedor = document.getElementById("contenedor-servicios");
-      if (!contenedor) return;
-      if (!lista || lista.length === 0) {
-        contenedor.innerHTML = `<p class="text-xs text-gray-500 col-span-2 text-center py-4 bg-white rounded-xl shadow-sm">No hay servicios registrados.</p>`;
-        return;
-      }
-      contenedor.innerHTML = lista.map(s => {
-        const rpVaca = s.rp !== undefined ? s.rp : s.vaca_rp;
-        const tipoServ = s.tipo_servicio || 'IA';
-
-        return `
-          <div class="p-3.5 rounded-xl border-l-4 shadow-sm bg-white border-l-green-600 flex justify-between items-start">
-            <div>
-              <div class="flex items-center gap-2">
-                <h4 class="font-bold text-gray-900 text-xs sm:text-sm">Vaca RP: ${rpVaca || 'N/D'}</h4>
-                <span class="bg-green-100 text-green-800 text-[10px] font-extrabold px-2 py-0.5 rounded">${tipoServ}</span>
-              </div>
-              <p class="text-xs text-gray-600 mt-1">Toro: ${s.toro_utilizado || '-'}</p>
-              <p class="text-xs text-blue-700 font-bold mt-1">FPP: ${s.fecha_parto_estimada || '-'} <span class="text-gray-400 font-normal text-[10px] ml-1">(Servicio: ${s.fecha_servicio || '-'})</span></p>
-            </div>
-            <button onclick="eliminarServicio('${s.id}')" class="text-red-500 hover:text-red-700 p-1 font-bold text-sm" title="Eliminar servicio">
-              🗑️
-            </button>
-          </div>
-        `;
-      }).join("");
+      filtrarServiciosLista();
     }
 
     async function cambiarTipoServicioRapido(idServicio, nuevoTipo) {
@@ -382,7 +332,70 @@
 
       localStorage.setItem("servicios_santa_candida", JSON.stringify(serviciosMemoria));
       if (fechaDetalleActualStr) abrirDetalleDia(fechaDetalleActualStr);
-      filtrarServiciosRegistrados();
+      filtrarServiciosLista();
+    }
+
+    function filtrarServiciosLista() {
+      const input = document.getElementById("input-buscar-servicio");
+      if (!input) return;
+      const q = input.value.trim().toLowerCase();
+
+      if (!q) {
+        renderizarServicios(serviciosMemoria);
+        return;
+      }
+
+      const filtrados = serviciosMemoria.filter(s => {
+        const rpVaca = String(s.rp !== undefined ? s.rp : s.vaca_rp || "").toLowerCase();
+        return rpVaca.includes(q);
+      });
+
+      renderizarServicios(filtrados);
+    }
+
+    function renderizarServicios(lista) {
+      const contenedor = document.getElementById("contenedor-servicios");
+      if (!contenedor) return;
+      if (!lista || lista.length === 0) {
+        contenedor.innerHTML = `<p class="text-xs text-gray-500 col-span-2 text-center py-4 bg-white rounded-xl shadow-sm">No se encontraron servicios registrados.</p>`;
+        return;
+      }
+      contenedor.innerHTML = lista.map(s => {
+        const rpVaca = s.rp !== undefined ? s.rp : s.vaca_rp;
+        const animalVaca = ganadoMemoria.find(a => String(a.rp).toLowerCase() === String(rpVaca).toLowerCase());
+        const nombreVacaStr = animalVaca && animalVaca.nombre ? ` (${animalVaca.nombre})` : '';
+        const tipoServ = s.tipo_servicio || 'IA';
+
+        return `
+          <div class="p-3.5 rounded-xl border-l-4 shadow-sm bg-white border-l-blue-500 flex justify-between items-start">
+            <div>
+              <div class="flex items-center gap-2">
+                <h4 class="font-bold text-gray-900 text-xs sm:text-sm">Vaca RP: ${rpVaca || 'N/D'}${nombreVacaStr}</h4>
+                <span class="bg-green-100 text-green-800 text-[10px] font-bold px-1.5 py-0.5 rounded">${tipoServ}</span>
+              </div>
+              <p class="text-xs text-gray-600 mt-0.5">Toro: ${s.toro_utilizado || '-'}</p>
+              <p class="text-xs text-blue-700 font-bold mt-1">FPP: ${s.fecha_parto_estimada || '-'} <span class="text-gray-400 font-normal text-[10px] ml-1">(Servicio: ${s.fecha_servicio || '-'})</span></p>
+            </div>
+            <button onclick="eliminarServicio('${s.id}')" class="text-red-500 hover:text-red-700 p-1 font-bold text-sm" title="Eliminar servicio">
+              🗑️
+            </button>
+          </div>
+        `;
+      }).join("");
+    }
+
+    async function eliminarServicio(idServicio) {
+      if (!confirm("¿Estás seguro de que deseas eliminar este servicio?")) return;
+
+      if (typeof supabaseClient !== 'undefined') {
+        try {
+          await supabaseClient.from('servicios').delete().eq('id', idServicio);
+        } catch (err) {
+          console.error("Error al eliminar de Supabase:", err);
+        }
+      }
+
+      await recargarServiciosDesdeSupa();
     }
 
     function abrirDetalleDia(fechaStr) {
