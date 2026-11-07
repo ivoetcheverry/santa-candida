@@ -274,10 +274,45 @@
     let ganadoMemoria = [];
     let serviciosMemoria = [];
     let fechaDetalleActualStr = null;
+    let fechaCalendarioActual = new Date();
+
+    const TOROS_CATALOGO_INICIAL = [
+      { id: "toro-escolta", nombre: "LUQUENSE 2389 ENTRADOR 1590-T/E (ESCOLTA)", hba: "858602", rp: "2389", sexo: "M", tipo: "Toro Reproductor" },
+      { id: "toro-don-eduardo", nombre: "HERJA DON EDUARDO", hba: "824050", rp: "111", sexo: "M", tipo: "Toro Reproductor" },
+      { id: "toro-don-manuel", nombre: "Don Manuel (HERJA PROTOTIPO 224 483 GENTIL)", hba: "91688700", rp: "659", sexo: "M", tipo: "Toro Reproductor" },
+      { id: "toro-631", nombre: "HERJA ZORZAL 407 ÑATO T/E", hba: "901597", rp: "631", sexo: "M", tipo: "Toro Reproductor" }
+    ];
 
     document.addEventListener("DOMContentLoaded", () => {
+      const hoy = new Date().toISOString().split("T")[0];
+      const inputFecha = document.getElementById("srv-fecha");
+      if (inputFecha) {
+        inputFecha.value = hoy;
+        actualizarFPP();
+      }
       cargarDatosSeguro();
     });
+
+    async function cambiarVista(vista) {
+      ["inventario", "toros", "servicios", "nacimientos", "arbol"].forEach((v) => {
+        const seccion = document.getElementById(`vista-${v}`);
+        const btn = document.getElementById(`btn-${v}`);
+        if (seccion) seccion.classList.add("hidden");
+        if (btn) btn.className = "px-3 py-1.5 rounded-lg text-green-100 hover:bg-green-700 shrink-0";
+      });
+
+      const seccionActiva = document.getElementById(`vista-${vista}`);
+      const btnActivo = document.getElementById(`btn-${vista}`);
+      if (seccionActiva) seccionActiva.classList.remove("hidden");
+      if (btnActivo) btnActivo.className = "px-3 py-1.5 rounded-lg bg-white text-green-900 font-bold shadow shrink-0";
+
+      if (vista === "inventario") renderizarGanado(ganadoMemoria);
+      if (vista === "toros") renderizarToros(ganadoMemoria);
+      if (vista === "servicios") {
+        poblarSelectTorosServicio();
+        await recargarServiciosDesdeSupa();
+      }
+    }
 
     async function cargarDatosSeguro() {
       let serviciosSupa = [];
@@ -298,6 +333,7 @@
       serviciosMemoria = serviciosSupa.length > 0 ? serviciosSupa : JSON.parse(localStorage.getItem("servicios_santa_candida") || "[]");
       ganadoMemoria = ganadoSupa.length > 0 ? ganadoSupa : JSON.parse(localStorage.getItem("ganado_santa_candida") || "[]");
       
+      renderizarGanado(ganadoMemoria);
       renderizarServicios(serviciosMemoria);
     }
 
@@ -398,6 +434,79 @@
       await recargarServiciosDesdeSupa();
     }
 
+    function abrirModalCalendario() {
+      fechaCalendarioActual = new Date();
+      renderizarCalendarioGrande();
+      document.getElementById("modal-calendario").classList.remove("hidden");
+    }
+
+    function cerrarModalCalendario() {
+      document.getElementById("modal-calendario").classList.add("hidden");
+    }
+
+    function cambiarMesCalendario(delta) {
+      fechaCalendarioActual.setMonth(fechaCalendarioActual.getMonth() + delta);
+      renderizarCalendarioGrande();
+    }
+
+    function renderizarCalendarioGrande() {
+      const anio = fechaCalendarioActual.getFullYear();
+      const mes = fechaCalendarioActual.getMonth();
+      const nombresMeses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+      const elMesAnio = document.getElementById("cal-mes-anio");
+      if (elMesAnio) elMesAnio.innerText = `${nombresMeses[mes]} ${anio}`;
+
+      const primerDiaMes = new Date(anio, mes, 1);
+      const ultimoDiaMes = new Date(anio, mes + 1, 0);
+      let primerDiaSemana = primerDiaMes.getDay() - 1;
+      if (primerDiaSemana === -1) primerDiaSemana = 6;
+
+      const totalDiasMes = ultimoDiaMes.getDate();
+      const grilla = document.getElementById("cal-grilla");
+      if (!grilla) return;
+
+      let html = "";
+      let ultimoDiaMesAnt = new Date(anio, mes, 0).getDate();
+      for (let i = primerDiaSemana - 1; i >= 0; i--) {
+        const diaNum = ultimoDiaMesAnt - i;
+        html += `<div class="bg-gray-50/50 border rounded-lg p-1.5 min-h-[95px] text-gray-300 select-none"><span class="text-[10px] font-bold">${diaNum}</span></div>`;
+      }
+
+      const hoyStr = new Date().toISOString().split("T")[0];
+      for (let dia = 1; dia <= totalDiasMes; dia++) {
+        const mesStr = String(mes + 1).padStart(2, '0');
+        const diaStr = String(dia).padStart(2, '0');
+        const fechaActualStr = `${anio}-${mesStr}-${diaStr}`;
+        const esHoy = fechaActualStr === hoyStr;
+
+        const serviciosDelDia = serviciosMemoria.filter(s => s.fecha_servicio === fechaActualStr);
+        let serviciosHtml = serviciosDelDia.map(ev => {
+          const rpVaca = ev.rp !== undefined ? ev.rp : ev.vaca_rp;
+          return `<div class="bg-green-600 text-white text-[9px] font-bold p-1 rounded mt-1 shadow-sm truncate">🧬 Serv. RP ${rpVaca}</div>`;
+        }).join("");
+
+        const partosDelDia = serviciosMemoria.filter(s => s.fecha_parto_estimada === fechaActualStr);
+        let partosHtml = partosDelDia.map(ev => {
+          const rpVaca = ev.rp !== undefined ? ev.rp : ev.vaca_rp;
+          return `<div class="bg-blue-600 text-white text-[9px] font-bold p-1 rounded mt-1 shadow-sm truncate">🐄 Parto RP ${rpVaca}</div>`;
+        }).join("");
+
+        const claseHoy = esHoy ? "border-2 border-green-600 bg-green-50/30" : "bg-white border-gray-200";
+
+        html += `
+          <div onclick="abrirDetalleDia('${fechaActualStr}')" class="${claseHoy} border rounded-lg p-1.5 min-h-[95px] flex flex-col justify-between overflow-hidden cursor-pointer hover:bg-green-50/60 transition-colors shadow-sm">
+            <span class="text-[11px] font-extrabold ${esHoy ? 'bg-green-700 text-white px-1 rounded-full w-5 h-5 flex items-center justify-center' : 'text-gray-700'}">${dia}</span>
+            <div class="space-y-0.5 overflow-y-auto max-h-[70px] no-scrollbar">
+              ${serviciosHtml}
+              ${partosHtml}
+            </div>
+          </div>
+        `;
+      }
+
+      grilla.innerHTML = html;
+    }
+
     function abrirDetalleDia(fechaStr) {
       fechaDetalleActualStr = fechaStr;
       const [anio, mes, dia] = fechaStr.split("-");
@@ -445,7 +554,6 @@
                 <span class="bg-blue-700 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">${tipoServ}</span>
               </div>
               <p class="text-xs text-gray-700"><span class="font-semibold text-gray-900">Toro utilizado:</span> ${toroUso}</p>
-              <p class="text-[11px] text-gray-500">Fecha del servicio original: ${s.fecha_servicio || '-'}</p>
             </div>
           `;
         }).join("");
@@ -457,6 +565,131 @@
     function cerrarModalDetalleDia() {
       document.getElementById("modal-detalle-dia").classList.add("hidden");
       fechaDetalleActualStr = null;
+    }
+
+    function renderizarGanado(lista) {
+      const tbody = document.getElementById("tabla-body");
+      if (!tbody) return;
+      tbody.innerHTML = (lista || []).map(a => `
+        <tr class="hover:bg-green-50">
+          <th class="p-2.5 font-bold text-green-900">${a.rp || "-"}</th>
+          <td class="p-2.5 font-semibold">${a.nombre || "-"}</td>
+          <td class="p-2.5 text-gray-600">${a.hba || "-"}</td>
+          <td class="p-2.5 text-blue-800">${a.padre || "-"}</td>
+          <td class="p-2.5 text-pink-800">${a.madre || "-"}</td>
+          <td class="p-2.5"><span class="bg-green-100 text-green-800 text-[10px] px-2 py-0.5 rounded-full font-bold">${a.tipo || "Vientre"}</span></td>
+        </tr>
+      `).join("");
+    }
+
+    function filtrarGanado() {
+      const q = document.getElementById("input-buscar").value.trim().toLowerCase();
+      const filtrados = ganadoMemoria.filter(a => String(a.rp || "").toLowerCase().includes(q) || String(a.nombre || "").toLowerCase().includes(q));
+      renderizarGanado(filtrados);
+    }
+
+    function renderizarToros(lista) {
+      const tbody = document.getElementById("tabla-toros-body");
+      if (!tbody) return;
+      tbody.innerHTML = (lista || []).filter(a => a.sexo === 'M' || a.tipo === 'Toro Reproductor').map(t => `
+        <tr class="hover:bg-blue-50">
+          <th class="p-2.5 font-bold text-blue-900">${t.rp || "-"}</th>
+          <td class="p-2.5 font-semibold">${t.nombre || "-"}</td>
+          <td class="p-2.5 text-gray-600">${t.hba || "-"}</td>
+          <td class="p-2.5 font-bold">${t.circunferencia_escrotal || '-'}</td>
+          <td class="p-2.5"><span class="bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded-full font-bold">Toro</span></td>
+        </tr>
+      `).join("");
+    }
+
+    function filtrarToros() {
+      const q = document.getElementById("input-buscar-toro").value.trim().toLowerCase();
+      const filtrados = ganadoMemoria.filter(a => (a.sexo === 'M' || a.tipo === 'Toro Reproductor') && (String(a.rp || "").toLowerCase().includes(q) || String(a.nombre || "").toLowerCase().includes(q)));
+      renderizarToros(filtrados);
+    }
+
+    function poblarSelectTorosServicio() {
+      const select = document.getElementById("srv-toro-select");
+      if (!select) return;
+      const toros = ganadoMemoria.filter(a => a.sexo === 'M' || a.tipo === 'Toro Reproductor');
+      select.innerHTML = `<option value="">Seleccionar toro del inventario...</option>` + toros.map(t => `<option value="${t.nombre || t.rp}">RP: ${t.rp} - ${t.nombre || 'Sin nombre'}</option>`).join("");
+    }
+
+    function sincronizarToroSelect(el) {
+      const inputToro = document.getElementById("srv-toro");
+      if (inputToro && el.value) inputToro.value = el.value;
+    }
+
+    function seleccionarTipoServicio(tipo) {
+      document.getElementById("srv-tipo").value = tipo;
+      ["IA", "Natural", "Repaso"].forEach(t => {
+        const btn = document.getElementById(`btntipo-${t}`);
+        if (btn) btn.className = t === tipo ? "p-2 text-xs font-bold rounded-lg border bg-green-50 border-green-600 text-green-800 shadow-sm" : "p-2 text-xs font-bold rounded-lg border bg-white border-gray-200 text-gray-700";
+      });
+    }
+
+    function actualizarFPP() {
+      const inputFecha = document.getElementById("srv-fecha");
+      const divFPP = document.getElementById("srv-fpp");
+      if (!inputFecha || !divFPP) return;
+      let f = inputFecha.value || new Date().toISOString().split("T")[0];
+      const d = new Date(f + "T00:00:00");
+      d.setDate(d.getDate() + 283);
+      divFPP.innerText = d.toISOString().split("T")[0];
+    }
+
+    async function guardarServicio(e) {
+      e.preventDefault();
+      const vacaRp = document.getElementById("srv-vaca-search").value.trim();
+      const fechaServ = document.getElementById("srv-fecha").value;
+      if (!vacaRp) return alert("Ingresá un RP de vaca válido.");
+
+      const servicio = {
+        id: crypto.randomUUID(),
+        rp: isNaN(vacaRp) ? vacaRp : Number(vacaRp),
+        vaca_rp: isNaN(vacaRp) ? vacaRp : Number(vacaRp),
+        fecha_servicio: fechaServ,
+        fecha_parto_estimada: calcularFPPStr(fechaServ),
+        tipo_servicio: document.getElementById("srv-tipo").value,
+        toro_utilizado: document.getElementById("srv-toro").value || 'No especificado'
+      };
+
+      if (typeof supabaseClient !== 'undefined') {
+        try {
+          await supabaseClient.from('servicios').insert([servicio]);
+        } catch (err) {
+          console.error(err);
+        }
+      }
+
+      await recargarServiciosDesdeSupa();
+      alert("✅ Servicio guardado con éxito.");
+      document.getElementById("form-servicio").reset();
+      actualizarFPP();
+    }
+
+    function calcularFPPStr(fStr) {
+      const d = new Date(fStr + "T00:00:00");
+      d.setDate(d.getDate() + 283);
+      return d.toISOString().split("T")[0];
+    }
+
+    function buscarVacaParaServicio() {
+      const q = document.getElementById("srv-vaca-search").value.toLowerCase().trim();
+      const res = document.getElementById("srv-vaca-results");
+      if (!q || !res) return res.classList.add("hidden");
+
+      const matches = ganadoMemoria.filter(a => String(a.rp || "").toLowerCase().includes(q) || String(a.nombre || "").toLowerCase().includes(q)).slice(0, 5);
+      if (matches.length === 0) return res.classList.add("hidden");
+
+      res.innerHTML = matches.map(a => `<div onclick="document.getElementById('srv-vaca-search').value='${a.rp}'; document.getElementById('srv-vaca-results').classList.add('hidden');" class="p-2 hover:bg-gray-100 cursor-pointer text-xs font-semibold">RP: ${a.rp} - ${a.nombre || ''}</div>`).join("");
+      res.classList.remove("hidden");
+    }
+
+    function forzarRecargaSupa() {
+      localStorage.clear();
+      alert("🔄 Caché limpiada y recargando...");
+      cargarDatosSeguro();
     }
   </script>
 </body>
