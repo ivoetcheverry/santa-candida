@@ -13,8 +13,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
-    const SUPABASE_URL = 'https://xmaplzwncqxvmlbsczif.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_zw24fTE6pgi0SJppwyw7pQ_0eNVR-Bp';
+    const SUPABASE_URL = 'https://sppbcmeccxqjdqecuhmz.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_uDEHN1Nj27dYRAJaZp5eDw_Cw_M4ZOi';
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   </script>
   <style>
@@ -61,7 +61,7 @@
               <th class="p-2.5 sm:p-3">HBA</th>
               <th class="p-2.5 sm:p-3 whitespace-nowrap">Padre</th>
               <th class="p-2.5 sm:p-3 whitespace-nowrap">Madre</th>
-              <th class="p-2.5 sm:p-3">Tipo</th>
+              <th class="p-2.5 sm:p-3">Tipo / Sexo</th>
             </tr>
           </thead>
           <tbody id="tabla-body" class="divide-y text-gray-800"></tbody>
@@ -143,7 +143,6 @@
           </button>
         </div>
         
-        <!-- BUSCADOR POR RP DE VACA EN SECCIÓN DE SERVICIOS -->
         <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
           <input type="text" id="input-buscar-servicio" oninput="filtrarServiciosLista()" placeholder="🔍 Filtrar servicios o partos por RP de Vaca..." class="w-full p-2.5 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-green-600 bg-gray-50/50">
         </div>
@@ -275,13 +274,6 @@
     let serviciosMemoria = [];
     let fechaDetalleActualStr = null;
     let fechaCalendarioActual = new Date();
-
-    const TOROS_CATALOGO_INICIAL = [
-      { id: "toro-escolta", nombre: "LUQUENSE 2389 ENTRADOR 1590-T/E (ESCOLTA)", hba: "858602", rp: "2389", sexo: "M", tipo: "Toro Reproductor" },
-      { id: "toro-don-eduardo", nombre: "HERJA DON EDUARDO", hba: "824050", rp: "111", sexo: "M", tipo: "Toro Reproductor" },
-      { id: "toro-don-manuel", nombre: "Don Manuel (HERJA PROTOTIPO 224 483 GENTIL)", hba: "91688700", rp: "659", sexo: "M", tipo: "Toro Reproductor" },
-      { id: "toro-631", nombre: "HERJA ZORZAL 407 ÑATO T/E", hba: "901597", rp: "631", sexo: "M", tipo: "Toro Reproductor" }
-    ];
 
     document.addEventListener("DOMContentLoaded", () => {
       const hoy = new Date().toISOString().split("T")[0];
@@ -570,28 +562,40 @@
     function renderizarGanado(lista) {
       const tbody = document.getElementById("tabla-body");
       if (!tbody) return;
-      tbody.innerHTML = (lista || []).map(a => `
-        <tr class="hover:bg-green-50">
-          <th class="p-2.5 font-bold text-green-900">${a.rp || "-"}</th>
-          <td class="p-2.5 font-semibold">${a.nombre || "-"}</td>
-          <td class="p-2.5 text-gray-600">${a.hba || "-"}</td>
-          <td class="p-2.5 text-blue-800">${a.padre || "-"}</td>
-          <td class="p-2.5 text-pink-800">${a.madre || "-"}</td>
-          <td class="p-2.5"><span class="bg-green-100 text-green-800 text-[10px] px-2 py-0.5 rounded-full font-bold">${a.tipo || "Vientre"}</span></td>
-        </tr>
-      `).join("");
+      tbody.innerHTML = (lista || []).map(a => {
+        // Formatear padre e madre usando las columnas exactas de Supabase
+        const padreStr = a.nombre_padre ? `${a.nombre_padre} (RP: ${a.rp_padre || '-'})` : (a.rp_padre ? `RP: ${a.rp_padre}` : '-');
+        const madreStr = a.nombre_madre ? `${a.nombre_madre} (RP: ${a.rp_madre || '-'})` : (a.rp_madre ? `RP: ${a.rp_madre}` : '-');
+        
+        return `
+          <tr class="hover:bg-green-50">
+            <th class="p-2.5 font-bold text-green-900">${a.rp || "-"}</th>
+            <td class="p-2.5 font-semibold">${a.nombre || "-"}</td>
+            <td class="p-2.5 text-gray-600">${a.hba || "-"}</td>
+            <td class="p-2.5 text-blue-800 text-xs">${padreStr}</td>
+            <td class="p-2.5 text-pink-800 text-xs">${madreStr}</td>
+            <td class="p-2.5"><span class="bg-green-100 text-green-800 text-[10px] px-2 py-0.5 rounded-full font-bold">${a.sexo || a.tipo || "Hembra"}</span></td>
+          </tr>
+        `;
+      }).join("");
     }
 
     function filtrarGanado() {
       const q = document.getElementById("input-buscar").value.trim().toLowerCase();
-      const filtrados = ganadoMemoria.filter(a => String(a.rp || "").toLowerCase().includes(q) || String(a.nombre || "").toLowerCase().includes(q));
+      const filtrados = ganadoMemoria.filter(a => 
+        String(a.rp || "").toLowerCase().includes(q) || 
+        String(a.nombre || "").toLowerCase().includes(q) || 
+        String(a.rp_padre || "").toLowerCase().includes(q) || 
+        String(a.nombre_padre || "").toLowerCase().includes(q) ||
+        String(a.hba || "").toLowerCase().includes(q)
+      );
       renderizarGanado(filtrados);
     }
 
     function renderizarToros(lista) {
       const tbody = document.getElementById("tabla-toros-body");
       if (!tbody) return;
-      tbody.innerHTML = (lista || []).filter(a => a.sexo === 'M' || a.tipo === 'Toro Reproductor').map(t => `
+      tbody.innerHTML = (lista || []).filter(a => a.sexo === 'M' || String(a.tipo || '').toLowerCase().includes('toro')).map(t => `
         <tr class="hover:bg-blue-50">
           <th class="p-2.5 font-bold text-blue-900">${t.rp || "-"}</th>
           <td class="p-2.5 font-semibold">${t.nombre || "-"}</td>
@@ -604,14 +608,14 @@
 
     function filtrarToros() {
       const q = document.getElementById("input-buscar-toro").value.trim().toLowerCase();
-      const filtrados = ganadoMemoria.filter(a => (a.sexo === 'M' || a.tipo === 'Toro Reproductor') && (String(a.rp || "").toLowerCase().includes(q) || String(a.nombre || "").toLowerCase().includes(q)));
+      const filtrados = ganadoMemoria.filter(a => (a.sexo === 'M' || String(a.tipo || '').toLowerCase().includes('toro')) && (String(a.rp || "").toLowerCase().includes(q) || String(a.nombre || "").toLowerCase().includes(q)));
       renderizarToros(filtrados);
     }
 
     function poblarSelectTorosServicio() {
       const select = document.getElementById("srv-toro-select");
       if (!select) return;
-      const toros = ganadoMemoria.filter(a => a.sexo === 'M' || a.tipo === 'Toro Reproductor');
+      const toros = ganadoMemoria.filter(a => a.sexo === 'M' || String(a.tipo || '').toLowerCase().includes('toro'));
       select.innerHTML = `<option value="">Seleccionar toro del inventario...</option>` + toros.map(t => `<option value="${t.nombre || t.rp}">RP: ${t.rp} - ${t.nombre || 'Sin nombre'}</option>`).join("");
     }
 
