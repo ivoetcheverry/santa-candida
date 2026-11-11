@@ -1,4 +1,4 @@
-ç<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -323,7 +323,7 @@
           <input type="text" id="nuevo-nac-torohba" class="w-full p-2 text-xs border rounded-lg" placeholder="Ej: 91688700">
         </div>
 
-        <button type="submit" class="w-full bg-blue-700 text-white font-bold p-2.5 rounded-lg hover:bg-blue-800 text-xs shadow">Guardar y Sincronizar Nacimiento</button>
+        <button type="submit" id="btn-guardar-nacimiento" class="w-full bg-blue-700 text-white font-bold p-2.5 rounded-lg hover:bg-blue-800 text-xs shadow">Guardar y Sincronizar Nacimiento</button>
       </form>
     </div>
   </div>
@@ -646,6 +646,14 @@
 
     const TOROS_CATALOGO_INICIAL = [
       { 
+        id: "toro-escolta", 
+        nombre: "LUQUENSE 2389 ENTRADOR 1590-T/E (ESCOLTA)", 
+        hba: "858602", 
+        rp: "2389", 
+        sexo: "M", 
+        tipo: "Toro Reproductor" 
+      },
+      { 
         id: "toro-don-eduardo", 
         nombre: "HERJA DON EDUARDO", 
         hba: "824050", 
@@ -940,6 +948,11 @@
     function abrirModalNuevoNacimiento() {
       document.getElementById("form-nuevo-nacimiento").reset();
       document.getElementById("nuevo-nac-fecha").value = new Date().toISOString().split("T")[0];
+      const btnGuardar = document.getElementById("btn-guardar-nacimiento");
+      if (btnGuardar) {
+        btnGuardar.disabled = false;
+        btnGuardar.classList.remove("opacity-50", "cursor-not-allowed");
+      }
       document.getElementById("modal-nuevo-nacimiento").classList.remove("hidden");
     }
 
@@ -949,12 +962,24 @@
 
     async function guardarNuevoNacimiento(e) {
       e.preventDefault();
+      
+      const btnGuardar = document.getElementById("btn-guardar-nacimiento");
+      if (btnGuardar) {
+        if (btnGuardar.disabled) return;
+        btnGuardar.disabled = true;
+        btnGuardar.classList.add("opacity-50", "cursor-not-allowed");
+      }
+
       const rawVacaRp = document.getElementById("nuevo-nac-vaca").value.trim();
       const limpioNum = rawVacaRp.replace(/\D/g, '');
       const vacaRpParsed = limpioNum ? Number(limpioNum) : null;
 
       if (!vacaRpParsed) {
         alert("⚠️ Por favor ingresá un RP de madre válido (números).");
+        if (btnGuardar) {
+          btnGuardar.disabled = false;
+          btnGuardar.classList.remove("opacity-50", "cursor-not-allowed");
+        }
         return;
       }
 
@@ -975,11 +1000,19 @@
           const { error } = await supabaseClient.from('nacimientos').insert([nuevoNac]);
           if (error) {
             alert("Error al guardar en Supabase: " + error.message);
+            if (btnGuardar) {
+              btnGuardar.disabled = false;
+              btnGuardar.classList.remove("opacity-50", "cursor-not-allowed");
+            }
             return;
           }
         } catch (err) {
           console.error("Excepción al registrar nacimiento:", err);
           alert("Ocurrió un error al guardar el registro.");
+          if (btnGuardar) {
+            btnGuardar.disabled = false;
+            btnGuardar.classList.remove("opacity-50", "cursor-not-allowed");
+          }
           return;
         }
       }
