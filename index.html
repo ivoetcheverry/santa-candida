@@ -650,8 +650,27 @@
         nombre: "LUQUENSE 2389 ENTRADOR 1590-T/E (ESCOLTA)", 
         hba: "858602", 
         rp: "2389", 
+        fecha_nacimiento: "2018-03-08", 
+        peso_nacer: 42, 
+        peso_205d: 270, 
+        peso_ano: 610, 
+        peso_maduro: 1045, 
+        frame: 4, 
+        circunferencia_escrotal: 44.0, 
+        padre: "LUQUENSE 1911 ENTRADOR -T/E", 
+        rp_padre: "1911", 
+        madre: "LUQUENSE 1590 IMPACTO 950-T/E x LUQUENSE 950 PUCARA 518-T/E", 
+        rp_madre: "1590", 
+        pedigree: "ENTRADOR X IMPACTO X PUCARA", 
+        criador: "Ganaderal del Villaguay S. A.", 
+        propietario: "Cabaña Tres Colonias / Cabaña Santa Juana / Nestor Geronimo Miño / Jorge Mariano Neifert", 
         sexo: "M", 
-        tipo: "Toro Reproductor" 
+        tipo: "Toro Reproductor", 
+        es_propio: false, 
+        tiene_deps: true, 
+        deps: { gest: "+0.3", nacer: "+0.5", dest: "+6.2", leche: "-2.4", final: "+28.5", ce: "+1.7", altura: "+1.7", egd: "+0.02", egc: "+0.09", aob: "-0.2", gi: "+0.09", cm: "+0.1" }, 
+        precs: { gest: "0.61", nacer: "0.73", dest: "0.70", leche: "0.38", final: "0.56", ce: "0.67", altura: "0.71", egd: "0.64", egc: "0.66", aob: "0.64", gi: "0.64", cm: "0.64" }, 
+        percs: { gest: "85%", nacer: "80%", dest: "50%", leche: "90%", final: "25%", ce: "15%", altura: "45%", egd: "80%", egc: "85%", aob: "85%", gi: "10%", cm: "35%" } 
       },
       { 
         id: "toro-don-eduardo", 
@@ -1316,7 +1335,7 @@
 
       const contenedorPadres = document.getElementById("toro-padres-container");
 
-      if (toro.es_propio) {
+      if (toro.es_propio || toro.padre || toro.madre) {
         contenedorPadres.classList.remove("hidden");
 
         const nombrePadre = toro.padre || toro.nombre_padre || "No registrado";
