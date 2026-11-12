@@ -1968,14 +1968,20 @@
         return alert("Por favor seleccioná o ingresá un RP de vaca válido.");
       }
 
+      const rpLimpio = String(vacaRp).replace(/\D/g, '');
+      const rpNumerico = rpLimpio ? Number(rpLimpio) : null;
+
+      if (!rpNumerico) {
+        return alert("⚠️ El RP de la vaca debe contener números válidos.");
+      }
+
       let fechaServ = document.getElementById("srv-fecha").value || new Date().toISOString().split("T")[0];
       const fpp = calcularFPPStr(fechaServ);
 
       const servicio = {
         id: crypto.randomUUID(),
-        animal_id: animalId,
-        rp: isNaN(vacaRp) ? vacaRp : Number(vacaRp),
-        vaca_rp: isNaN(vacaRp) ? vacaRp : Number(vacaRp),
+        animal_id: animalId ? String(animalId) : null,
+        rp: rpNumerico,
         fecha_servicio: fechaServ,
         fecha_parto_estimada: fpp,
         tipo_servicio: document.getElementById("srv-tipo").value,
@@ -1989,9 +1995,11 @@
           if (error) {
             console.error("Error al guardar en Supabase:", error);
             alert("⚠️ Error al sincronizar con Supabase: " + error.message);
+            return;
           }
         } catch (err) {
           console.error("Excepción Supabase:", err);
+          return;
         }
       }
 
