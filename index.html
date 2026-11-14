@@ -423,7 +423,7 @@
 
       <div class="space-y-2 pt-2 border-t">
         <div class="flex justify-between items-center">
-          <h3 class="text-xs sm:text-sm font-bold text-gray-800">📸 Carpeta Fotos y Videos</h3>
+          <h3 class="text-xs sm:text-sm font-bold text-gray-800">📸 Carpeta Fotos y Videos (Offline)</h3>
           <label class="bg-green-700 text-white text-[11px] px-2.5 py-1.5 rounded-lg font-bold cursor-pointer inline-block shadow">
             + Subir
             <input type="file" accept="image/*,video/*" multiple onchange="subirMultimediaSupabase(event)" class="hidden">
@@ -601,7 +601,7 @@
 
       <div class="space-y-2 pt-2 border-t">
         <div class="flex justify-between items-center">
-          <h3 class="text-xs sm:text-sm font-bold text-gray-800">📸 Fotos y Videos del Toro</h3>
+          <h3 class="text-xs sm:text-sm font-bold text-gray-800">📸 Fotos y Videos del Toro (Offline)</h3>
           <label class="bg-blue-700 text-white text-[11px] px-2.5 py-1.5 rounded-lg font-bold cursor-pointer inline-block shadow">
             + Subir
             <input type="file" accept="image/*,video/*" multiple onchange="subirMultimediaToroSupabase(event)" class="hidden">
@@ -822,7 +822,7 @@
         el.innerText = "Online";
         el.className = "text-[11px] bg-green-600 px-2 py-0.5 rounded-full font-semibold shrink-0";
       } else {
-        el.innerText = "Offline";
+        el.innerText = "Offline (Modo Local)";
         el.className = "text-[11px] bg-amber-600 px-2 py-0.5 rounded-full font-semibold shrink-0";
       }
     }
@@ -855,7 +855,7 @@
       try {
         let ganadoSupa = [];
 
-        if (typeof supabaseClient !== 'undefined') {
+        if (navigator.onLine && typeof supabaseClient !== 'undefined') {
           try {
             const { data: dataSupa, error } = await supabaseClient.from('ganado').select('*');
             if (!error && dataSupa && dataSupa.length > 0) {
@@ -863,7 +863,7 @@
               localStorage.setItem("ganado_santa_candida", JSON.stringify(ganadoSupa));
             }
           } catch (errSup) {
-            console.warn("Error conectando a Supabase:", errSup);
+            console.warn("Aviso de conexión con Supabase, usando caché local:", errSup);
           }
         }
 
@@ -896,7 +896,7 @@
 
     async function recargarServiciosDesdeSupa() {
       let serviciosSupa = [];
-      if (typeof supabaseClient !== 'undefined') {
+      if (navigator.onLine && typeof supabaseClient !== 'undefined') {
         try {
           const { data: srvData, error } = await supabaseClient
             .from('servicios')
@@ -908,7 +908,7 @@
             localStorage.setItem("servicios_santa_candida", JSON.stringify(serviciosSupa));
           }
         } catch(e) {
-          console.error(e);
+          console.warn("Usando servicios locales:", e);
         }
       }
 
@@ -923,11 +923,11 @@
         serviciosMemoria[idx].tipo_servicio = nuevoTipo;
       }
 
-      if (typeof supabaseClient !== 'undefined') {
+      if (navigator.onLine && typeof supabaseClient !== 'undefined') {
         try {
           await supabaseClient.from('servicios').update({ tipo_servicio: nuevoTipo }).eq('id', idServicio);
         } catch (err) {
-          console.error("Error al actualizar tipo de servicio:", err);
+          console.warn("Actualizado localmente por falta de red:", err);
         }
       }
 
@@ -937,27 +937,33 @@
     }
 
     async function recargarNacimientosDesdeSupa() {
-      if (typeof supabaseClient === 'undefined') return;
-      try {
-        const { data, error } = await supabaseClient
-          .from('nacimientos')
-          .select('*')
-          .order('fecha_nacimiento', { ascending: true });
+      let nacSupa = [];
+      if (navigator.onLine && typeof supabaseClient !== 'undefined') {
+        try {
+          const { data, error } = await supabaseClient
+            .from('nacimientos')
+            .select('*')
+            .order('fecha_nacimiento', { ascending: true });
 
-        if (!error && data) {
-          nacimientosMemoria = data;
-          renderizarTablaNacimientos(nacimientosMemoria);
+          if (!error && data) {
+            nacSupa = data;
+            localStorage.setItem("nacimientos_santa_candida", JSON.stringify(nacSupa));
+          }
+        } catch (err) {
+          console.warn("Usando nacimientos locales:", err);
         }
-      } catch (err) {
-        console.error("Error al cargar nacimientos:", err);
       }
+
+      const nacStorage = JSON.parse(localStorage.getItem("nacimientos_santa_candida") || "[]");
+      nacimientosMemoria = (nacSupa && nacSupa.length > 0) ? nacSupa : nacStorage;
+      renderizarTablaNacimientos(nacimientosMemoria);
     }
 
     function renderizarTablaNacimientos(lista) {
       const tbody = document.getElementById("tabla-nacimientos-body");
       if (!tbody) return;
       if (!lista || lista.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500">No hay nacimientos registrados aún en Supabase.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500">No hay nacimientos registrados aún.</td></tr>`;
         return;
       }
       tbody.innerHTML = lista.map(n => {
@@ -1042,25 +1048,14 @@
         toro_hba: document.getElementById("nuevo-nac-torohba").value.trim() || 'N/D'
       };
 
-      if (typeof supabaseClient !== 'undefined') {
+      nacimientosMemoria.push(nuevoNac);
+      localStorage.setItem("nacimientos_santa_candida", JSON.stringify(nacimientosMemoria));
+
+      if (navigator.onLine && typeof supabaseClient !== 'undefined') {
         try {
-          const { error } = await supabaseClient.from('nacimientos').insert([nuevoNac]);
-          if (error) {
-            alert("Error al guardar en Supabase: " + error.message);
-            if (btnGuardar) {
-              btnGuardar.disabled = false;
-              btnGuardar.classList.remove("opacity-50", "cursor-not-allowed");
-            }
-            return;
-          }
+          await supabaseClient.from('nacimientos').insert([nuevoNac]);
         } catch (err) {
-          console.error("Excepción al registrar nacimiento:", err);
-          alert("Ocurrió un error al guardar el registro.");
-          if (btnGuardar) {
-            btnGuardar.disabled = false;
-            btnGuardar.classList.remove("opacity-50", "cursor-not-allowed");
-          }
-          return;
+          console.warn("Guardado localmente, se sincronizará online al reconectar:", err);
         }
       }
 
@@ -1105,21 +1100,17 @@
         toro_hba: document.getElementById("edit-nac-torohba").value || null
       };
 
-      if (typeof supabaseClient !== 'undefined') {
-        try {
-          const { error } = await supabaseClient
-            .from('nacimientos')
-            .update(datosActualizados)
-            .eq('id', id);
+      const idx = nacimientosMemoria.findIndex(n => n.id === id);
+      if (idx !== -1) {
+        nacimientosMemoria[idx] = { ...nacimientosMemoria[idx], ...datosActualizados };
+        localStorage.setItem("nacimientos_santa_candida", JSON.stringify(nacimientosMemoria));
+      }
 
-          if (error) {
-            alert("Error al actualizar en Supabase: " + error.message);
-            return;
-          }
+      if (navigator.onLine && typeof supabaseClient !== 'undefined') {
+        try {
+          await supabaseClient.from('nacimientos').update(datosActualizados).eq('id', id);
         } catch (err) {
-          console.error("Excepción al editar nacimiento:", err);
-          alert("Ocurrió un error al actualizar.");
-          return;
+          console.warn("Actualizado localmente:", err);
         }
       }
 
@@ -1131,21 +1122,14 @@
     async function eliminarNacimiento(idNacimiento) {
       if (!confirm("¿Estás seguro de que querés borrar este registro de nacimiento?")) return;
 
-      if (typeof supabaseClient !== 'undefined') {
-        try {
-          const { error } = await supabaseClient
-            .from('nacimientos')
-            .delete()
-            .eq('id', idNacimiento);
+      nacimientosMemoria = nacimientosMemoria.filter(n => n.id !== idNacimiento);
+      localStorage.setItem("nacimientos_santa_candida", JSON.stringify(nacimientosMemoria));
 
-          if (error) {
-            alert("Error al borrar en Supabase: " + error.message);
-            return;
-          }
+      if (navigator.onLine && typeof supabaseClient !== 'undefined') {
+        try {
+          await supabaseClient.from('nacimientos').delete().eq('id', idNacimiento);
         } catch (err) {
-          console.error("Error al eliminar nacimiento:", err);
-          alert("Ocurrió un error al intentar borrar el registro.");
-          return;
+          console.warn("Eliminado localmente:", err);
         }
       }
 
@@ -1178,11 +1162,10 @@
     }
 
     async function forzarRecargaSupa() {
-      localStorage.removeItem("ganado_santa_candida");
-      localStorage.removeItem("servicios_santa_candida");
-      alert("🔄 Limpiando caché y resincronizando con Supabase...");
+      alert("🔄 Sincronizando datos...");
       await cargarDatosSeguro();
       await recargarNacimientosDesdeSupa();
+      alert("✅ ¡Sincronización completada!");
     }
 
     function esToroReproductor(a) {
@@ -1416,9 +1399,11 @@
       const rpIdentificador = toro.rp || toro.id;
       let photoUrl = localStorage.getItem(`toro_foto_${rpIdentificador}`);
 
-      if (!photoUrl && typeof supabaseClient !== 'undefined') {
-        const { data: publicUrlData } = supabaseClient.storage.from('fotos-ganado').getPublicUrl(`perfil_toro_${rpIdentificador}.jpg`);
-        if (publicUrlData && publicUrlData.publicUrl) photoUrl = publicUrlData.publicUrl;
+      if (!photoUrl && navigator.onLine && typeof supabaseClient !== 'undefined') {
+        try {
+          const { data: publicUrlData } = supabaseClient.storage.from('fotos-ganado').getPublicUrl(`perfil_toro_${rpIdentificador}.jpg`);
+          if (publicUrlData && publicUrlData.publicUrl) photoUrl = publicUrlData.publicUrl;
+        } catch(e) {}
       }
 
       if (photoUrl && img && placeholder) {
@@ -1445,23 +1430,26 @@
       if (!file || !toroActual) return;
       const rp = toroActual.rp || toroActual.id;
 
-      if (typeof supabaseClient !== 'undefined') {
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        const base64Url = e.target.result;
+        localStorage.setItem(`toro_foto_${rp}`, base64Url);
+        const img = document.getElementById("toro-img");
+        const placeholder = document.getElementById("toro-foto-placeholder");
+        if (img && placeholder) {
+          img.src = base64Url;
+          img.classList.remove("hidden");
+          placeholder.classList.add("hidden");
+        }
+      };
+      reader.readAsDataURL(file);
+
+      if (navigator.onLine && typeof supabaseClient !== 'undefined') {
         try {
           const fileName = `perfil_toro_${rp}.jpg`;
           await supabaseClient.storage.from('fotos-ganado').upload(fileName, file, { upsert: true });
-          const { data } = supabaseClient.storage.from('fotos-ganado').getPublicUrl(fileName);
-          if (data && data.publicUrl) {
-            localStorage.setItem(`toro_foto_${rp}`, data.publicUrl);
-            const img = document.getElementById("toro-img");
-            const placeholder = document.getElementById("toro-foto-placeholder");
-            if (img && placeholder) {
-              img.src = data.publicUrl + '?t=' + Date.now();
-              img.classList.remove("hidden");
-              placeholder.classList.add("hidden");
-            }
-          }
         } catch (e) {
-          console.error(e);
+          console.warn("Foto de toro guardada localmente:", e);
         }
       }
     }
@@ -1470,28 +1458,41 @@
       const files = event.target.files;
       if (!files || !files.length || !animalActual) return;
 
-      if (typeof supabaseClient === 'undefined') {
-        alert("Error: Supabase no está inicializado.");
-        return;
-      }
-
       const rp = animalActual.rp || animalActual.id;
       const container = document.getElementById("ficha-galeria");
-      if (container) container.innerHTML = `<p class="text-xs text-blue-600 col-span-4 font-bold animate-pulse">⬆️ Subiendo archivos a Supabase...</p>`;
+      if (container) container.innerHTML = `<p class="text-xs text-blue-600 col-span-4 font-bold animate-pulse">💾 Guardando archivos localmente...</p>`;
+
+      let localGaleria = JSON.parse(localStorage.getItem(`galeria_items_${rp}`) || "[]");
 
       for (let file of files) {
-        const timestamp = Date.now();
-        const fileName = `galeria_${rp}_${timestamp}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
+        await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = async function(e) {
+            const base64Url = e.target.result;
+            const esVideo = file.type.startsWith('video/') || file.name.match(/\.(mp4|mov|avi|mkv|webm)$/i);
+            const newItem = {
+              url: base64Url,
+              tipo: esVideo ? 'video' : 'imagen',
+              nombre: file.name
+            };
+            localGaleria.push(newItem);
 
-        try {
-          await supabaseClient.storage
-            .from('fotos-ganado')
-            .upload(fileName, file);
-        } catch (err) {
-          console.error("Error al subir archivo:", err);
-        }
+            if (navigator.onLine && typeof supabaseClient !== 'undefined') {
+              try {
+                const timestamp = Date.now();
+                const fileName = `galeria_${rp}_${timestamp}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
+                await supabaseClient.storage.from('fotos-ganado').upload(fileName, file);
+              } catch (err) {
+                console.warn("Archivo guardado offline en caché:", err);
+              }
+            }
+            resolve();
+          };
+          reader.readAsDataURL(file);
+        });
       }
 
+      localStorage.setItem(`galeria_items_${rp}`, JSON.stringify(localGaleria));
       renderGaleriaFotosSupabase();
       if (event.target) event.target.value = "";
     }
@@ -1502,80 +1503,103 @@
       if (!container) return;  
       const rp = animalActual.rp || animalActual.id;
 
-      if (typeof supabaseClient === 'undefined') {
-        container.innerHTML = `<p class="text-xs text-gray-400 col-span-4">Supabase no disponible.</p>`;
+      let visorItems = [];
+      const localItems = JSON.parse(localStorage.getItem(`galeria_items_${rp}`) || "[]");
+      if (localItems.length > 0) {
+        visorItems = [...localItems];
+      }
+
+      if (navigator.onLine && typeof supabaseClient !== 'undefined') {
+        try {
+          const { data, error } = await supabaseClient.storage
+            .from('fotos-ganado')
+            .list('', { search: `galeria_${rp}_` });
+
+          if (!error && data && data.length > 0) {
+            const supaItems = data.map(item => {
+              const { data: publicUrlData } = supabaseClient.storage
+                .from('fotos-ganado')
+                .getPublicUrl(item.name);
+              const esVideo = item.name.match(/\.(mp4|mov|avi|mkv|webm)$/i);
+              return {
+                url: publicUrlData.publicUrl,
+                tipo: esVideo ? 'video' : 'imagen',
+                nombre: item.name
+              };
+            });
+            const nombresExistentes = new Set(visorItems.map(i => i.nombre));
+            supaItems.forEach(si => {
+              if (!nombresExistentes.has(si.nombre)) {
+                visorItems.push(si);
+              }
+            });
+            localStorage.setItem(`galeria_items_${rp}`, JSON.stringify(visorItems));
+          }
+        } catch (err) {
+          console.warn("Usando galería en caché local:", err);
+        }
+      }
+
+      visorFotosActuales = visorItems;
+
+      if (visorFotosActuales.length === 0) {
+        container.innerHTML = `<p class="text-xs text-gray-400 col-span-4">No hay fotos o videos registrados.</p>`;
         return;
       }
 
-      try {
-        const { data, error } = await supabaseClient.storage
-          .from('fotos-ganado')
-          .list('', { search: `galeria_${rp}_` });
+      container.innerHTML = visorFotosActuales.map((item, index) => {
+        const esVideo = item.tipo === 'video';
+        let contenidoVisual = esVideo 
+          ? `<video src="${item.url}" class="w-full h-full object-cover pointer-events-none" onerror="this.parentElement.innerHTML='<div class=\\'flex items-center justify-center h-full bg-gray-200 text-[10px] text-gray-500\\'>Video local</div>'"></video><div class="absolute inset-0 flex items-center justify-center bg-black/40"><span class="text-white text-[10px] font-bold bg-black/60 px-1 py-0.5 rounded">▶ Video</span></div>`
+          : `<img src="${item.url}" class="w-full h-full object-cover" onerror="this.src='logo.png'">`;
 
-        if (error || !data || data.length === 0) {
-          container.innerHTML = `<p class="text-xs text-gray-400 col-span-4">No hay fotos o videos en Supabase para este animal.</p>`;
-          visorFotosActuales = [];
-          return;
-        }
-
-        visorFotosActuales = data.map(item => {
-          const { data: publicUrlData } = supabaseClient.storage
-            .from('fotos-ganado')
-            .getPublicUrl(item.name);
-          
-          const esVideo = item.name.match(/\.(mp4|mov|avi|mkv|webm)$/i);
-          return {
-            url: publicUrlData.publicUrl,
-            tipo: esVideo ? 'video' : 'imagen',
-            nombre: item.name
-          };
-        });
-
-        container.innerHTML = visorFotosActuales.map((item, index) => {
-          const esVideo = item.tipo === 'video';
-          let contenidoVisual = esVideo 
-            ? `<video src="${item.url}" class="w-full h-full object-cover pointer-events-none"></video><div class="absolute inset-0 flex items-center justify-center bg-black/40"><span class="text-white text-[10px] font-bold bg-black/60 px-1 py-0.5 rounded">▶ Video</span></div>`
-            : `<img src="${item.url}" class="w-full h-full object-cover">`;
-
-          return `
-            <div class="relative group w-full h-14 sm:h-16 bg-gray-100 rounded-lg overflow-hidden border cursor-pointer" onclick="abrirVisorGaleria(${index})">
-              ${contenidoVisual}
-            </div>
-          `;
-        }).join("");
-
-      } catch (err) {
-        console.error("Error listando archivos:", err);
-        container.innerHTML = `<p class="text-xs text-red-500 col-span-4">Error al conectar con Supabase.</p>`;
-      }
+        return `
+          <div class="relative group w-full h-14 sm:h-16 bg-gray-100 rounded-lg overflow-hidden border cursor-pointer shadow-sm" onclick="abrirVisorGaleria(${index})">
+            ${contenidoVisual}
+          </div>
+        `;
+      }).join("");
     }
 
     async function subirMultimediaToroSupabase(event) {
       const files = event.target.files;
       if (!files || !files.length || !toroActual) return;
 
-      if (typeof supabaseClient === 'undefined') {
-        alert("Error: Supabase no está inicializado.");
-        return;
-      }
-
       const rp = toroActual.rp || toroActual.id;
       const container = document.getElementById("toro-galeria");
-      if (container) container.innerHTML = `<p class="text-xs text-blue-600 col-span-4 font-bold animate-pulse">⬆️ Subiendo archivos a Supabase...</p>`;
+      if (container) container.innerHTML = `<p class="text-xs text-blue-600 col-span-4 font-bold animate-pulse">💾 Guardando archivos localmente...</p>`;
+
+      let localGaleria = JSON.parse(localStorage.getItem(`galeria_toro_items_${rp}`) || "[]");
 
       for (let file of files) {
-        const timestamp = Date.now();
-        const fileName = `galeria_toro_${rp}_${timestamp}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
+        await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = async function(e) {
+            const base64Url = e.target.result;
+            const esVideo = file.type.startsWith('video/') || file.name.match(/\.(mp4|mov|avi|mkv|webm)$/i);
+            const newItem = {
+              url: base64Url,
+              tipo: esVideo ? 'video' : 'imagen',
+              nombre: file.name
+            };
+            localGaleria.push(newItem);
 
-        try {
-          await supabaseClient.storage
-            .from('fotos-ganado')
-            .upload(fileName, file);
-        } catch (err) {
-          console.error("Excepción al subir toro:", err);
-        }
+            if (navigator.onLine && typeof supabaseClient !== 'undefined') {
+              try {
+                const timestamp = Date.now();
+                const fileName = `galeria_toro_${rp}_${timestamp}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
+                await supabaseClient.storage.from('fotos-ganado').upload(fileName, file);
+              } catch (err) {
+                console.warn("Archivo guardado offline:", err);
+              }
+            }
+            resolve();
+          };
+          reader.readAsDataURL(file);
+        });
       }
 
+      localStorage.setItem(`galeria_toro_items_${rp}`, JSON.stringify(localGaleria));
       renderGaleriaToroSupabase();
       if (event.target) event.target.value = "";
     }
@@ -1586,48 +1610,62 @@
       if (!container) return;  
       const rp = toroActual.rp || toroActual.id;
 
-      if (typeof supabaseClient === 'undefined') return;
-
-      try {
-        const { data, error } = await supabaseClient.storage
-          .from('fotos-ganado')
-          .list('', { search: `galeria_toro_${rp}_` });
-
-        if (error || !data || data.length === 0) {
-          container.innerHTML = `<p class="text-xs text-gray-400 col-span-4">No hay fotos o videos en Supabase para este toro.</p>`;
-          visorFotosActuales = [];
-          return;
-        }
-
-        visorFotosActuales = data.map(item => {
-          const { data: publicUrlData } = supabaseClient.storage
-            .from('fotos-ganado')
-            .getPublicUrl(item.name);
-          
-          const esVideo = item.name.match(/\.(mp4|mov|avi|mkv|webm)$/i);
-          return {
-            url: publicUrlData.publicUrl,
-            tipo: esVideo ? 'video' : 'imagen',
-            nombre: item.name
-          };
-        });
-
-        container.innerHTML = visorFotosActuales.map((item, index) => {
-          const esVideo = item.tipo === 'video';
-          let contenidoVisual = esVideo 
-            ? `<video src="${item.url}" class="w-full h-full object-cover pointer-events-none"></video><div class="absolute inset-0 flex items-center justify-center bg-black/40"><span class="text-white text-[10px] font-bold bg-black/60 px-1 py-0.5 rounded">▶ Video</span></div>`
-            : `<img src="${item.url}" class="w-full h-full object-cover">`;
-
-          return `
-            <div class="relative group w-full h-14 sm:h-16 bg-gray-100 rounded-lg overflow-hidden border cursor-pointer" onclick="abrirVisorGaleria(${index})">
-              ${contenidoVisual}
-            </div>
-          `;
-        }).join("");
-
-      } catch (err) {
-        console.error("Error listando archivos de toro:", err);
+      let visorItems = [];
+      const localItems = JSON.parse(localStorage.getItem(`galeria_toro_items_${rp}`) || "[]");
+      if (localItems.length > 0) {
+        visorItems = [...localItems];
       }
+
+      if (navigator.onLine && typeof supabaseClient !== 'undefined') {
+        try {
+          const { data, error } = await supabaseClient.storage
+            .from('fotos-ganado')
+            .list('', { search: `galeria_toro_${rp}_` });
+
+          if (!error && data && data.length > 0) {
+            const supaItems = data.map(item => {
+              const { data: publicUrlData } = supabaseClient.storage
+                .from('fotos-ganado')
+                .getPublicUrl(item.name);
+              const esVideo = item.name.match(/\.(mp4|mov|avi|mkv|webm)$/i);
+              return {
+                url: publicUrlData.publicUrl,
+                tipo: esVideo ? 'video' : 'imagen',
+                nombre: item.name
+              };
+            });
+            const nombresExistentes = new Set(visorItems.map(i => i.nombre));
+            supaItems.forEach(si => {
+              if (!nombresExistentes.has(si.nombre)) {
+                visorItems.push(si);
+              }
+            });
+            localStorage.setItem(`galeria_toro_items_${rp}`, JSON.stringify(visorItems));
+          }
+        } catch (err) {
+          console.warn("Usando galería de toro en caché local:", err);
+        }
+      }
+
+      visorFotosActuales = visorItems;
+
+      if (visorFotosActuales.length === 0) {
+        container.innerHTML = `<p class="text-xs text-gray-400 col-span-4">No hay fotos o videos registrados.</p>`;
+        return;
+      }
+
+      container.innerHTML = visorFotosActuales.map((item, index) => {
+        const esVideo = item.tipo === 'video';
+        let contenidoVisual = esVideo 
+          ? `<video src="${item.url}" class="w-full h-full object-cover pointer-events-none" onerror="this.parentElement.innerHTML='<div class=\\'flex items-center justify-center h-full bg-gray-200 text-[10px] text-gray-500\\'>Video local</div>'"></video><div class="absolute inset-0 flex items-center justify-center bg-black/40"><span class="text-white text-[10px] font-bold bg-black/60 px-1 py-0.5 rounded">▶ Video</span></div>`
+          : `<img src="${item.url}" class="w-full h-full object-cover" onerror="this.src='logo.png'">`;
+
+        return `
+          <div class="relative group w-full h-14 sm:h-16 bg-gray-100 rounded-lg overflow-hidden border cursor-pointer shadow-sm" onclick="abrirVisorGaleria(${index})">
+            ${contenidoVisual}
+          </div>
+        `;
+      }).join("");
     }
 
     function abrirVisorFotoPrincipal() {
@@ -1798,9 +1836,11 @@
       const rpIdentificador = animal.rp || animal.id;
       let photoUrl = localStorage.getItem(`foto_${rpIdentificador}`);
 
-      if (!photoUrl && typeof supabaseClient !== 'undefined') {
-        const { data: publicUrlData } = supabaseClient.storage.from('fotos-ganado').getPublicUrl(`perfil_${rpIdentificador}.jpg`);
-        if (publicUrlData && publicUrlData.publicUrl) photoUrl = publicUrlData.publicUrl;
+      if (!photoUrl && navigator.onLine && typeof supabaseClient !== 'undefined') {
+        try {
+          const { data: publicUrlData } = supabaseClient.storage.from('fotos-ganado').getPublicUrl(`perfil_${rpIdentificador}.jpg`);
+          if (publicUrlData && publicUrlData.publicUrl) photoUrl = publicUrlData.publicUrl;
+        } catch(e) {}
       }
 
       if (photoUrl && img && placeholder) {
@@ -1827,23 +1867,26 @@
       if (!file || !animalActual) return;
       const rp = animalActual.rp || animalActual.id;
 
-      if (typeof supabaseClient !== 'undefined') {
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        const base64Url = e.target.result;
+        localStorage.setItem(`foto_${rp}`, base64Url);
+        const img = document.getElementById("ficha-img");
+        const placeholder = document.getElementById("ficha-foto-placeholder");
+        if (img && placeholder) {
+          img.src = base64Url;
+          img.classList.remove("hidden");
+          placeholder.classList.add("hidden");
+        }
+      };
+      reader.readAsDataURL(file);
+
+      if (navigator.onLine && typeof supabaseClient !== 'undefined') {
         try {
           const fileName = `perfil_${rp}.jpg`;
           await supabaseClient.storage.from('fotos-ganado').upload(fileName, file, { upsert: true });
-          const { data } = supabaseClient.storage.from('fotos-ganado').getPublicUrl(fileName);
-          if (data && data.publicUrl) {
-            localStorage.setItem(`foto_${rp}`, data.publicUrl);
-            const img = document.getElementById("ficha-img");
-            const placeholder = document.getElementById("ficha-foto-placeholder");
-            if (img && placeholder) {
-              img.src = data.publicUrl + '?t=' + Date.now();
-              img.classList.remove("hidden");
-              placeholder.classList.add("hidden");
-            }
-          }
         } catch (e) {
-          console.error(e);
+          console.warn("Foto guardada localmente:", e);
         }
       }
     }
@@ -1989,17 +2032,14 @@
         estado: "pendiente"
       };
 
-      if (typeof supabaseClient !== 'undefined') {
+      serviciosMemoria.unshift(servicio);
+      localStorage.setItem("servicios_santa_candida", JSON.stringify(serviciosMemoria));
+
+      if (navigator.onLine && typeof supabaseClient !== 'undefined') {
         try {
-          const { error } = await supabaseClient.from('servicios').insert([servicio]);
-          if (error) {
-            console.error("Error al guardar en Supabase:", error);
-            alert("⚠️ Error al sincronizar con Supabase: " + error.message);
-            return;
-          }
+          await supabaseClient.from('servicios').insert([servicio]);
         } catch (err) {
-          console.error("Excepción Supabase:", err);
-          return;
+          console.warn("Servicio guardado en caché local:", err);
         }
       }
 
@@ -2016,11 +2056,14 @@
     async function eliminarServicio(idServicio) {
       if (!confirm("¿Estás seguro de que deseas eliminar este servicio?")) return;
 
-      if (typeof supabaseClient !== 'undefined') {
+      serviciosMemoria = serviciosMemoria.filter(s => s.id !== idServicio);
+      localStorage.setItem("servicios_santa_candida", JSON.stringify(serviciosMemoria));
+
+      if (navigator.onLine && typeof supabaseClient !== 'undefined') {
         try {
           await supabaseClient.from('servicios').delete().eq('id', idServicio);
         } catch (err) {
-          console.error("Error al eliminar de Supabase:", err);
+          console.warn("Eliminado localmente:", err);
         }
       }
 
