@@ -1043,6 +1043,90 @@
       });
     }
 
+    // --- FUNCIÓN DE COMPRESIÓN DE VIDEO AUTOMÁTICA ---
+    function comprimirVideo(file) {
+      return new Promise((resolve) => {
+        if (!file.type.startsWith('video/') && !file.name.match(/\.(mp4|mov|avi|mkv|webm)$/i)) {
+          resolve(file);
+          return;
+        }
+
+        const videoUrl = URL.createObjectURL(file);
+        const video = document.createElement('video');
+        video.src = videoUrl;
+        video.muted = true;
+        video.playsInline = true;
+
+        video.onloadedmetadata = () => {
+          video.play();
+          const canvas = document.createElement('canvas');
+          let width = video.videoWidth;
+          let height = video.videoHeight;
+          const maxWidth = 960; // 720p optimizado
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+
+          const stream = canvas.captureStream(24);
+          const targetBitrate = 800000; // ~800 kbps
+          let mediaRecorder;
+
+          try {
+            mediaRecorder = new MediaRecorder(stream, {
+              mimeType: 'video/webm; codecs=vp9',
+              videoBitsPerSecond: targetBitrate
+            });
+          } catch (e) {
+            try {
+              mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/mp4' });
+            } catch (err) {
+              mediaRecorder = new MediaRecorder(stream);
+            }
+          }
+
+          const chunks = [];
+          mediaRecorder.ondataavailable = (e) => {
+            if (e.data && e.data.size > 0) chunks.push(e.data);
+          };
+
+          mediaRecorder.onstop = () => {
+            const blobType = mediaRecorder.mimeType.includes('mp4') ? 'video/mp4' : 'video/webm';
+            const compressedBlob = new Blob(chunks, { type: blobType });
+            const compressedFile = new File([compressedBlob], file.name.replace(/\.[^/.]+$/, "") + (blobType.includes('mp4') ? '.mp4' : '.webm'), {
+              type: blobType,
+              lastModified: Date.now()
+            });
+            URL.revokeObjectURL(videoUrl);
+            resolve(compressedFile);
+          };
+
+          mediaRecorder.start();
+
+          function drawFrame() {
+            if (video.ended || video.paused || video.currentTime >= video.duration) {
+              mediaRecorder.stop();
+              return;
+            }
+            ctx.drawImage(video, 0, 0, width, height);
+            requestAnimationFrame(drawFrame);
+          }
+
+          video.onplay = () => {
+            drawFrame();
+          };
+        };
+
+        video.onerror = () => {
+          URL.revokeObjectURL(videoUrl);
+          resolve(file);
+        };
+      });
+    }
+
     // --- CARGA OFFLINE-FIRST CON SUPABASE ---
     async function cargarDatosSeguro() {
       try {
@@ -2202,7 +2286,7 @@
 
       const rp = animalActual.rp || animalActual.id;
       const container = document.getElementById("ficha-galeria");
-      if (container) container.innerHTML = `<p class="text-xs text-blue-600 col-span-4 font-bold animate-pulse">💾 Comprimiendo y guardando...</p>`;
+      if (container) container.innerHTML = `<p class="text-xs text-blue-600 col-span-4 font-bold animate-pulse">💾 Optimizando y comprimiendo archivos...</p>`;
 
       let localGaleria = JSON.parse(localStorage.getItem(`galeria_items_${rp}`) || "[]");
 
@@ -2210,6 +2294,8 @@
         let fileAProcesar = file;
         if (file.type.startsWith('image/')) {
           fileAProcesar = await comprimirImagen(file, 1200, 0.75);
+        } else if (file.type.startsWith('video/') || file.name.match(/\.(mp4|mov|avi|mkv|webm)$/i)) {
+          fileAProcesar = await comprimirVideo(file);
         }
 
         await new Promise((resolve) => {
@@ -2314,7 +2400,7 @@
 
       const rp = toroActual.rp || toroActual.id;
       const container = document.getElementById("toro-galeria");
-      if (container) container.innerHTML = `<p class="text-xs text-blue-600 col-span-4 font-bold animate-pulse">💾 Comprimiendo y guardando...</p>`;
+      if (container) container.innerHTML = `<p class="text-xs text-blue-600 col-span-4 font-bold animate-pulse">💾 Optimizando y comprimiendo archivos...</p>`;
 
       let localGaleria = JSON.parse(localStorage.getItem(`galeria_toro_items_${rp}`) || "[]");
 
@@ -2322,6 +2408,8 @@
         let fileAProcesar = file;
         if (file.type.startsWith('image/')) {
           fileAProcesar = await comprimirImagen(file, 1200, 0.75);
+        } else if (file.type.startsWith('video/') || file.name.match(/\.(mp4|mov|avi|mkv|webm)$/i)) {
+          fileAProcesar = await comprimirVideo(file);
         }
 
         await new Promise((resolve) => {
