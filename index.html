@@ -203,7 +203,7 @@
       <div class="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100 flex flex-wrap justify-between items-center gap-2">
         <div>
           <h2 class="text-base font-extrabold text-gray-900">🚧 Control de Piquetes y Lotes</h2>
-          <p class="text-xs text-gray-500">Organizá los RPs encerrados, pesadas actuales, pedigree y notas.</p>
+          <p class="text-xs text-gray-500">Organizá los RPs encerrados, pesadas actuales, pedigree y notas (Sincronizado).</p>
         </div>
         <div class="flex gap-2">
           <button onclick="exportarExcelPiquetes()" class="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold px-3 py-2 rounded-lg border flex items-center gap-1">
@@ -241,7 +241,7 @@
           <label class="block text-xs font-semibold text-gray-600 mb-1">Potrero / Ubicación / Dieta (Opcional):</label>
           <input type="text" id="piq-descripcion" placeholder="Ej: Potrero El Monte - Suplementación maíz" class="w-full p-2.5 text-xs border rounded-lg">
         </div>
-        <button type="submit" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold p-2.5 rounded-lg text-sm shadow">Guardar Piquete</button>
+        <button type="submit" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold p-2.5 rounded-lg text-sm shadow">Guardar y Sincronizar Piquete</button>
       </form>
     </div>
   </div>
@@ -315,7 +315,7 @@
           <textarea id="ap-notas" rows="2" placeholder="Ej: Buen estado, vacunado aftosa, candidato lote 1..." class="w-full p-2 text-xs border rounded-lg"></textarea>
         </div>
 
-        <button type="submit" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold p-3 rounded-lg text-sm shadow">Guardar Datos en Lote</button>
+        <button type="submit" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold p-3 rounded-lg text-sm shadow">Guardar y Sincronizar en Lote</button>
       </form>
     </div>
   </div>
@@ -948,7 +948,7 @@
       }
     }
 
-    // --- CARGA OFFLINE-FIRST ROBUSTA ---
+    // --- CARGA OFFLINE-FIRST CON SUPABASE PARA PIQUETES ---
     async function cargarDatosSeguro() {
       try {
         let ganadoLocal = JSON.parse(localStorage.getItem("ganado_santa_candida") || "[]");
@@ -968,17 +968,16 @@
         nacimientosMemoria = JSON.parse(localStorage.getItem("nacimientos_santa_candida") || "[]");
         piquetesMemoria = JSON.parse(localStorage.getItem("piquetes_santa_candida") || "[]");
 
-        // Crear piquetes de ejemplo la primera vez si está vacío
         if (!Array.isArray(piquetesMemoria) || piquetesMemoria.length === 0) {
           piquetesMemoria = [
             {
-              id: crypto.randomUUID(),
+              id: "piquete-1-default",
               nombre: "Piquete 1 - Toros Preparación",
               descripcion: "Encierre principal - Suplementación",
               animales: []
             },
             {
-              id: crypto.randomUUID(),
+              id: "piquete-2-default",
               nombre: "Piquete 2 - Vaquillonas / Vientres",
               descripcion: "Lote selección",
               animales: []
@@ -1032,6 +1031,19 @@
               renderizarTablaNacimientos(nacimientosMemoria);
             }
 
+            // Sincronizar Piquetes desde Supabase
+            const { data: piqData } = await supabaseClient.from('piquetes').select('*');
+            if (piqData && piqData.length > 0) {
+              piquetesMemoria = piqData;
+              localStorage.setItem("piquetes_santa_candida", JSON.stringify(piquetesMemoria));
+              renderizarPiquetes();
+            } else if (piquetesMemoria.length > 0) {
+              // Si Supabase está vacío pero tenemos datos locales, subirlos
+              for (let piq of piquetesMemoria) {
+                await supabaseClient.from('piquetes').upsert([piq]);
+              }
+            }
+
             marcarEstadoOnline(true);
           } catch (errSup) {
             console.warn("Sin conexión real a Supabase, operando con datos locales:", errSup);
@@ -1048,11 +1060,56 @@
       }
     }
 
+    async function recargarPiquetesDesdeSupa() {
+      const piqStorage = JSON.parse(localStorage.getItem("piquetes_santa_candida") || "[]");
+      piquetesMemoria = piqStorage;
+      renderizarPiquetes();
+
+      if (navigator.onLine && typeof supabaseClient !== 'undefined') {
+        try {
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000));
+          const fetchPiq = supabaseClient.from('piquetes').select('*');
+          const { data, error } = await Promise.race([fetchPiq, timeoutPromise]);
+
+          if (!error && data && data.length > 0) {
+            piquetesMemoria = data;
+            localStorage.setItem("piquetes_santa_candida", JSON.stringify(piquetesMemoria));
+            renderizarPiquetes();
+            marcarEstadoOnline(true);
+          }
+        } catch (err) {
+          marcarEstadoOnline(false);
+        }
+      }
+    }
+
     /* ==========================================================
-       SECCIÓN PIQUETES / LOTES EDITABLES (100% OFFLINE-FIRST)
+       SECCIÓN PIQUETES / LOTES EDITABLES (CON SUPABASE)
        ========================================================== */
-    function guardarPiquetesEnStorage() {
+    async function guardarPiqueteEnNubeYLocal() {
       localStorage.setItem("piquetes_santa_candida", JSON.stringify(piquetesMemoria));
+      if (navigator.onLine && typeof supabaseClient !== 'undefined') {
+        try {
+          for (let piq of piquetesMemoria) {
+            await supabaseClient.from('piquetes').upsert([piq]);
+          }
+        } catch (e) {
+          console.warn("Piquete guardado localmente, pendiente de subida online:", e);
+        }
+      }
+    }
+
+    async function eliminarPiqueteEnNubeYLocal(piqueteId) {
+      piquetesMemoria = piquetesMemoria.filter(p => p.id !== piqueteId);
+      localStorage.setItem("piquetes_santa_candida", JSON.stringify(piquetesMemoria));
+
+      if (navigator.onLine && typeof supabaseClient !== 'undefined') {
+        try {
+          await supabaseClient.from('piquetes').delete().eq('id', piqueteId);
+        } catch (e) {
+          console.warn("Piquete eliminado localmente:", e);
+        }
+      }
     }
 
     function abrirModalCrearPiquete(piqueteId = null) {
@@ -1082,7 +1139,7 @@
       document.getElementById("modal-piquete-form").classList.add("hidden");
     }
 
-    function guardarPiqueteForm(e) {
+    async function guardarPiqueteForm(e) {
       e.preventDefault();
       const id = document.getElementById("piq-edit-id").value;
       const nombre = document.getElementById("piq-nombre").value.trim();
@@ -1105,15 +1162,14 @@
         });
       }
 
-      guardarPiquetesEnStorage();
+      await guardarPiqueteEnNubeYLocal();
       cerrarModalPiqueteForm();
       renderizarPiquetes();
     }
 
-    function eliminarPiquete(piqueteId) {
+    async function eliminarPiquete(piqueteId) {
       if (!confirm("¿Seguro que querés eliminar este piquete y su lista de animales encerrados?")) return;
-      piquetesMemoria = piquetesMemoria.filter(p => p.id !== piqueteId);
-      guardarPiquetesEnStorage();
+      await eliminarPiqueteEnNubeYLocal(piqueteId);
       renderizarPiquetes();
     }
 
@@ -1212,7 +1268,7 @@
       if (ceFrame.length > 0) document.getElementById("ap-ce-frame").value = ceFrame.join(" / ");
     }
 
-    function guardarAnimalEnPiquete(e) {
+    async function guardarAnimalEnPiquete(e) {
       e.preventDefault();
       const piqueteId = document.getElementById("ap-piquete-id").value;
       const itemId = document.getElementById("ap-item-id").value;
@@ -1242,17 +1298,17 @@
         piq.animales.push(datosAnimal);
       }
 
-      guardarPiquetesEnStorage();
+      await guardarPiqueteEnNubeYLocal();
       cerrarModalAnimalPiquete();
       renderizarPiquetes();
     }
 
-    function eliminarAnimalDePiquete(piqueteId, itemId) {
+    async function eliminarAnimalDePiquete(piqueteId, itemId) {
       if (!confirm("¿Sacar este RP del piquete?")) return;
       const piq = piquetesMemoria.find(p => p.id === piqueteId);
       if (!piq) return;
       piq.animales = (piq.animales || []).filter(a => a.id !== itemId);
-      guardarPiquetesEnStorage();
+      await guardarPiqueteEnNubeYLocal();
       renderizarPiquetes();
     }
 
@@ -1283,7 +1339,6 @@
 
         if (q && !coincidePiquete && animalesFiltrados.length === 0) return "";
 
-        // Cálculo de promedio de peso del lote
         const conPeso = animalesTodos.filter(a => a.peso && !isNaN(a.peso));
         const promedioPeso = conPeso.length > 0 
           ? Math.round(conPeso.reduce((acc, a) => acc + Number(a.peso), 0) / conPeso.length) 
@@ -1403,8 +1458,16 @@
     }
 
     /* ==========================================================
-       FUNCIONES DE SERVICIOS, NACIMIENTOS, INVENTARIO Y TOROS
+       FUNCIONES GENERALES Y DE SINCRONIZACIÓN
        ========================================================== */
+    async function forzarRecargaSupa() {
+      alert("🔄 Sincronizando datos de la nube...");
+      await cargarDatosSeguro();
+      await recargarNacimientosDesdeSupa();
+      await recargarPiquetesDesdeSupa();
+      alert("✅ ¡Sincronización completada!");
+    }
+
     async function recargarServiciosDesdeSupa() {
       const serviciosStorage = JSON.parse(localStorage.getItem("servicios_santa_candida") || "[]");
       serviciosMemoria = serviciosStorage;
@@ -1651,13 +1714,6 @@
 
       const fechaHoy = new Date().toISOString().split('T')[0];
       XLSX.writeFile(workbook, `Registro_Nacimientos_SRA_Santa_Candida_${fechaHoy}.xlsx`);
-    }
-
-    async function forzarRecargaSupa() {
-      alert("🔄 Sincronizando datos...");
-      await cargarDatosSeguro();
-      await recargarNacimientosDesdeSupa();
-      alert("✅ ¡Sincronización completada!");
     }
 
     function esToroReproductor(a) {
