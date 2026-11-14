@@ -16,7 +16,10 @@
   <script>
     const SUPABASE_URL = 'https://xmaplzwncqxvmlbsczif.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_zw24fTE6pgi0SJppwyw7pQ_0eNVR-Bp';
-    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: false },
+      global: { headers: { 'x-client-info': 'santa-candida-pwa' } }
+    });
   </script>
   <!-- Script de registro PWA (Service Worker) -->
   <script>
@@ -43,7 +46,7 @@
           <img src="./logo.png" alt="Santa Cándida" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-green-600 bg-white shrink-0" onerror="this.onerror=null; this.src='logo.png';"> 
           <span class="truncate">Santa Cándida</span>
         </h1>
-        <span id="estado-red" class="text-[11px] bg-green-600 px-2 py-0.5 rounded-full font-semibold shrink-0">Online</span>
+        <span id="estado-red" class="text-[11px] bg-amber-600 px-2.5 py-1 rounded-full font-bold shrink-0 shadow-sm">Verificando...</span>
       </div>
       
       <nav class="flex gap-1.5 bg-green-900/60 p-1 rounded-xl text-xs font-semibold overflow-x-auto no-scrollbar whitespace-nowrap touch-scroll">
@@ -51,7 +54,7 @@
         <button onclick="cambiarVista('toros')" id="btn-toros" class="px-3 py-1.5 rounded-lg text-green-100 hover:bg-green-700 shrink-0">Toros</button>
         <button onclick="cambiarVista('servicios')" id="btn-servicios" class="px-3 py-1.5 rounded-lg text-green-100 hover:bg-green-700 shrink-0">Servicios</button>
         <button onclick="cambiarVista('nacimientos')" id="btn-nacimientos" class="px-3 py-1.5 rounded-lg text-green-100 hover:bg-green-700 shrink-0">🐣 Nacimientos SRA</button>
-        <button onclick="cambiarVista('arbol')" id="btn-arbol" class="px-3 py-1.5 rounded-lg text-green-100 hover:bg-green-700 shrink-0">Árbol Genealógico</button>
+        <button onclick="cambiarVista('piquetes')" id="btn-piquetes" class="px-3 py-1.5 rounded-lg text-green-100 hover:bg-green-700 shrink-0">🚧 Piquetes</button>
       </nav>
     </div>
   </header>
@@ -195,37 +198,127 @@
       </div>
     </section>
 
-    <!-- VISTA ÁRBOL GENEALÓGICO -->
-    <section id="vista-arbol" class="hidden space-y-4">
-      <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 max-w-2xl mx-auto space-y-4">
-        <h2 class="text-base sm:text-lg font-bold text-gray-800">🌳 Visualizador Genealógico</h2>
+    <!-- VISTA PIQUETES (LOTES EDITABLES) -->
+    <section id="vista-piquetes" class="hidden space-y-4">
+      <div class="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100 flex flex-wrap justify-between items-center gap-2">
         <div>
-          <label class="block text-xs font-semibold text-gray-600 mb-1">Escribí RP o Nombre del animal:</label>
-          <input type="text" id="arbol-search" oninput="buscarAnimalArbol()" placeholder="Ej: RP o Nombre..." class="w-full p-3 text-sm border rounded-xl">
-          <div id="arbol-results" class="bg-white border rounded-xl hidden max-h-40 overflow-y-auto mt-1 shadow-lg"></div>
+          <h2 class="text-base font-extrabold text-gray-900">🚧 Control de Piquetes y Lotes</h2>
+          <p class="text-xs text-gray-500">Organizá los RPs encerrados, pesadas actuales, pedigree y notas.</p>
         </div>
-        <div id="arbol-card" class="hidden border border-green-200 bg-green-50/30 p-4 rounded-xl space-y-4">
-          <div class="border-b pb-2">
-            <span class="text-[10px] font-bold text-green-800 uppercase">Animal</span>
-            <h3 id="arb-nombre" class="text-base font-bold text-gray-900"></h3>
-            <p id="arb-sub" class="text-xs text-gray-500"></p>
-          </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div class="bg-white p-3 rounded-lg border border-blue-200">
-              <span class="text-[10px] font-bold text-blue-700 uppercase">Padre (Toro)</span>
-              <p id="arb-padre-nom" class="font-bold text-xs sm:text-sm text-gray-800 mt-0.5"></p>
-              <p id="arb-padre-rp" class="text-xs text-gray-600"></p>
-            </div>
-            <div class="bg-white p-3 rounded-lg border border-pink-200">
-              <span class="text-[10px] font-bold text-pink-700 uppercase">Madre (Vientre)</span>
-              <p id="arb-madre-nom" class="font-bold text-xs sm:text-sm text-gray-800 mt-0.5"></p>
-              <p id="arb-madre-rp" class="text-xs text-gray-600"></p>
-            </div>
-          </div>
+        <div class="flex gap-2">
+          <button onclick="exportarExcelPiquetes()" class="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold px-3 py-2 rounded-lg border flex items-center gap-1">
+            📥 Excel
+          </button>
+          <button onclick="abrirModalCrearPiquete()" class="bg-green-700 hover:bg-green-800 text-white text-xs font-bold px-3.5 py-2 rounded-lg shadow flex items-center gap-1.5">
+            ➕ Nuevo Piquete / Lote
+          </button>
         </div>
       </div>
+
+      <!-- Filtro rápido de RP entre piquetes -->
+      <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+        <input type="text" id="input-buscar-piquete" oninput="renderizarPiquetes()" placeholder="🔍 Buscar RP, nombre o piquete..." class="w-full p-2.5 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-green-600 bg-gray-50/50">
+      </div>
+
+      <!-- Contenedor de Piquetes -->
+      <div id="contenedor-piquetes" class="space-y-4"></div>
     </section>
   </main>
+
+  <!-- MODAL CREAR / EDITAR PIQUETE -->
+  <div id="modal-piquete-form" class="fixed inset-0 bg-black/60 hidden z-50 flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl relative">
+      <button onclick="cerrarModalPiqueteForm()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 font-bold text-xl p-1">✕</button>
+      <h2 id="modal-piq-titulo" class="text-base font-bold text-gray-900 border-b pb-2">🚧 Nuevo Piquete / Lote</h2>
+      
+      <form onsubmit="guardarPiqueteForm(event)" class="space-y-3">
+        <input type="hidden" id="piq-edit-id">
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Nombre del Piquete o Lote:</label>
+          <input type="text" id="piq-nombre" placeholder="Ej: Piquete 1 - Toros Remate / Lote Vaquillonas" class="w-full p-2.5 text-sm border rounded-lg" required>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Potrero / Ubicación / Dieta (Opcional):</label>
+          <input type="text" id="piq-descripcion" placeholder="Ej: Potrero El Monte - Suplementación maíz" class="w-full p-2.5 text-xs border rounded-lg">
+        </div>
+        <button type="submit" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold p-2.5 rounded-lg text-sm shadow">Guardar Piquete</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL AGREGAR / EDITAR ANIMAL EN PIQUETE -->
+  <div id="modal-animal-piquete" class="fixed inset-0 bg-black/60 hidden z-50 flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-2xl relative max-h-[92vh] overflow-y-auto touch-scroll">
+      <button onclick="cerrarModalAnimalPiquete()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 font-bold text-xl p-1">✕</button>
+      <h2 id="modal-ani-piq-titulo" class="text-base font-bold text-gray-900 border-b pb-2">🐂 Agregar RP al Piquete</h2>
+      
+      <form onsubmit="guardarAnimalEnPiquete(event)" class="space-y-3">
+        <input type="hidden" id="ap-piquete-id">
+        <input type="hidden" id="ap-item-id">
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="relative">
+            <label class="block text-xs font-semibold text-gray-600 mb-1">RP del Animal *:</label>
+            <input type="text" id="ap-rp" oninput="autocompletarAnimalPiquete()" placeholder="Ej: 697" class="w-full p-2.5 text-sm font-bold border rounded-lg uppercase" required>
+            <div id="ap-sugerencias" class="bg-white border rounded-lg hidden max-h-36 overflow-y-auto mt-1 shadow-lg absolute left-0 right-0 z-20"></div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Categoría / Tipo:</label>
+            <select id="ap-categoria" class="w-full p-2.5 text-xs border rounded-lg bg-white font-semibold">
+              <option value="Toro">Toro</option>
+              <option value="Torito">Torito</option>
+              <option value="Vaca">Vaca</option>
+              <option value="Vaquillona">Vaquillona</option>
+              <option value="Ternero/a">Ternero/a</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Nombre / Apodo:</label>
+          <input type="text" id="ap-nombre" placeholder="Ej: Herja Don Manuel" class="w-full p-2 text-xs border rounded-lg">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-blue-800 mb-1">Padre (Toro):</label>
+            <input type="text" id="ap-padre" placeholder="Nombre o RP padre" class="w-full p-2 text-xs border rounded-lg bg-blue-50/30">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-pink-800 mb-1">Madre (Vientre):</label>
+            <input type="text" id="ap-madre" placeholder="Nombre o RP madre" class="w-full p-2 text-xs border rounded-lg bg-pink-50/30">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Pedigree / Línea Genética / HBA:</label>
+          <input type="text" id="ap-pedigree" placeholder="Ej: Esencial Gentil x Don Eduardo | HBA 916887" class="w-full p-2 text-xs border rounded-lg">
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 bg-green-50/60 p-2.5 rounded-xl border border-green-100">
+          <div>
+            <label class="block text-[11px] font-bold text-green-900 mb-1">Peso Actual (kg):</label>
+            <input type="number" step="0.5" id="ap-peso" placeholder="Ej: 485" class="w-full p-2 text-xs font-bold border rounded-lg bg-white">
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-green-900 mb-1">Fecha Pesada:</label>
+            <input type="date" id="ap-fecha-peso" class="w-full p-2 text-xs border rounded-lg bg-white">
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-green-900 mb-1">C.E. / Frame:</label>
+            <input type="text" id="ap-ce-frame" placeholder="Ej: CE 38 / F 4.2" class="w-full p-2 text-xs border rounded-lg bg-white">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Observaciones / Estado Corporal / Sanidad:</label>
+          <textarea id="ap-notas" rows="2" placeholder="Ej: Buen estado, vacunado aftosa, candidato lote 1..." class="w-full p-2 text-xs border rounded-lg"></textarea>
+        </div>
+
+        <button type="submit" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold p-3 rounded-lg text-sm shadow">Guardar Datos en Lote</button>
+      </form>
+    </div>
+  </div>
 
   <!-- MODAL CALENDARIO GRANDE -->
   <div id="modal-calendario" class="fixed inset-0 bg-black/60 hidden z-50 flex items-center justify-center p-2 sm:p-4">
@@ -647,6 +740,7 @@
     let ganadoMemoria = [];
     let serviciosMemoria = [];
     let nacimientosMemoria = [];
+    let piquetesMemoria = [];
     let animalActual = null;
     let toroActual = null;
     let visorFotosActuales = [];
@@ -704,7 +798,6 @@
       { id: "toro-don-manuel", nombre: "Don Manuel (HERJA PROTOTIPO 224 483 GENTIL)", hba: "91688700", rp: "659", fecha_nacimiento: "2024-07-17", peso_nacer: 32, circunferencia_escrotal: 43.0, padre: "ESENCIAL GENTIL", rp_padre: "555", madre: "HERJA DON EDUARDO 174 GENTIL", rp_madre: "483", pedigree: "Esencial Gentil x Herja Don Eduardo 483", criador: "Cabaña Santa Cándida S.R.L.", propietario: "Cabaña Santa Cándida S.R.L.", sexo: "M", tipo: "Toro Reproductor", es_propio: true, tiene_deps: true, deps: { gest: "+0.8", nacer: "-1.4", dest: "+5.4", leche: "+0.2", final: "+16.6", ce: "+1.1", altura: "+0.8", egd: "+0.15", egc: "+0.46", aob: "+0.04", gi: "-0.4", cm: "-" }, precs: { gest: "0.36", nacer: "0.43", dest: "0.46", leche: "0.31", final: "0.36", ce: "0.20", altura: "0.23", egd: "0.15", egc: "0.17", aob: "0.15", gi: "0.15", cm: "0.15" }, percs: { gest: "100%", nacer: "5%", dest: "55%", leche: "65%", final: "60%", ce: "50%", altura: "90%", egd: "25%", egc: "40%", aob: "30%", gi: "70%", cm: "-" } },
       { id: "toro-735", nombre: "RP 735", hba: "Pendiente", rp: "735", padre: "Halcón", rp_padre: "8554", madre: "262", rp_madre: "262", pedigree: "Halcón x 262 (RP 262)", criador: "Cabaña Santa Cándida", propietario: "Cabaña Santa Cándida", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
       { id: "toro-yanquetruz", nombre: "TRES MARIAS C337 YANQUETRUZ T/E", hba: "888590", rp: "C337", fecha_nacimiento: "2022-04-16", padre: "DON JOSE 176 MAXI-T/E", madre: "TRES MARIAS B074 GARDEL 9946-T/E", pedigree: "Maxi x Gardel x Credito", criador: "Cabaña Tres Marías de Gutiérrez", propietario: "Lenti, Legaccio, Agroganadera Pucon, GENPRO", sexo: "M", tipo: "Toro Reproductor", es_propio: false },
-      
       { 
         id: "toro-gardel", 
         nombre: "TRES MARIAS A689 GARDEL", 
@@ -731,7 +824,6 @@
         precs: { gest: "0.59", nacer: "0.78", dest: "0.77", leche: "0.56", final: "0.62", ce: "0.69", altura: "0.76", egd: "0.66", egc: "0.68", aob: "0.66", gi: "0.64", cm: "0.66" }, 
         percs: { gest: "40%", nacer: "45%", dest: "30%", leche: "95%", final: "65%", ce: "75%", altura: "5%", egd: "55%", egc: "75%", aob: "100%", gi: "15%", cm: "95%" } 
       },
-
       { 
         id: "toro-jeronimo", 
         nombre: "JERONIMO", 
@@ -746,11 +838,9 @@
         tipo: "Toro Reproductor", 
         es_propio: false 
       },
-
       { id: "toro-779", nombre: "RP 779", hba: "920985", rp: "779", fecha_nacimiento: "2025-09-11", padre: "LÚCUMA", rp_padre: "4178", madre: "374", rp_madre: "374", pedigree: "LÚCUMA x 374 (RP 374)", criador: "Cabaña Santa Cándida", propietario: "Cabaña Santa Cándida", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
       { id: "toro-631", nombre: "HERJA ZORZAL 407 ÑATO T/E", hba: "901597", rp: "631", fecha_nacimiento: "2023-09-18", peso_nacer: 30, padre: "EL ABRA JEWLIAN MELGA A893", rp_padre: "A893", madre: "ANTOCAR CAROLA", rp_madre: "407", pedigree: "EL ABRA JEWLIAN MELGA A893 x ANTOCAR CAROLA (RP 407)", criador: "Santa Cándida S.R.L.", propietario: "Santa Cándida S.R.L.", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
       { id: "toro-595", nombre: "Tano", hba: "909122", rp: "595", fecha_nacimiento: "2023-08-06", peso_nacer: 36, peso_maduro: 830, circunferencia_escrotal: 41.0, padre: "Napolitano", madre: "Santa Cándida 200", rp_madre: "200", pedigree: "Napolitano x Elegido x Zorzal", criador: "Cabaña Santa Cándida", propietario: "Cabaña Santa Cándida", sexo: "M", tipo: "Toro Reproductor", es_propio: true },
-      
       { id: "toro-farabute", nombre: "FARABUTE", hba: "883315", rp: "1183", fecha_nacimiento: "2021-08-26", peso_nacer: 36, peso_205d: 357, peso_ano: 694, peso_maduro: null, frame: 4.1, circunferencia_escrotal: 40.0, padre: "INDIO NUEVO 1183 HERCULES 326-FIV", rp_padre: "326", madre: "INDIO NUEVO 326 BRUTAL 971", rp_madre: "326", pedigree: "Hercules x Brutal x Contrato x Sargento", criador: "Cabaña Santa Rosa", propietario: "Cabaña Santa Rosa", sexo: "M", tipo: "Toro Reproductor", es_propio: false, tiene_deps: true, deps: { gest: "-1.9", nacer: "-0.8", dest: "+2.6", leche: "+0.1", final: "-2.8", ce: "+0.6", altura: "+1.3", egd: "+0.14", egc: "+0.31", aob: "+0.4", gi: "+0.14", cm: "-0.1" }, precs: { gest: "0.54", nacer: "0.67", dest: "0.67", leche: "0.41", final: "0.46", ce: "0.52", altura: "0.56", egd: "0.36", egc: "0.38", aob: "0.38", gi: "0.37", cm: "0.38" }, percs: { gest: "10%", nacer: "30%", dest: "80%", leche: "65%", final: "100%", ce: "90%", altura: "65%", egd: "60%", egc: "65%", aob: "75%", gi: "4%", cm: "45%" } },
       { id: "toro-redboxer", nombre: "RED BOXER", hba: "910993", rp: "SI 21217", fecha_nacimiento: "2021-03-08", peso_nacer: 35, peso_205d: 354, peso_ano: 548, peso_maduro: 880, frame: 4.8, circunferencia_escrotal: 43.0, padre: "DUFF RED BOXER 21217", madre: "WCR HAMMELECH 8127", pedigree: "Red Boxer x Hammelech x Blast", criador: "Duff Cattle Co.", propietario: "Select Debernardi / Axtell Cattle Company", sexo: "M", tipo: "Toro Reproductor", es_propio: false, tiene_deps: true, deps: { gest: "+7", nacer: "+2.0", dest: "+54", leche: "+27", final: "+85", ce: "+0.37", altura: "+11", egd: "+0.03", egc: "+0.04", aob: "+0.30", gi: "+17", cm: "-" }, precs: { gest: "54", nacer: "64", dest: "60", leche: "20", final: "57", ce: "33", altura: "64", egd: "36", egc: "33", aob: "41", gi: "44", cm: "32" }, percs: { gest: "-", nacer: "-", dest: "-", leche: "21%", final: "-", ce: "23%", altura: "12%", egd: "-", egc: "-", aob: "-", gi: "-", cm: "-" } },
       { id: "toro-johann", nombre: "JOHANN", hba: "877509", rp: "1009", fecha_nacimiento: "2020-07-19", peso_nacer: 32, peso_205d: 261, peso_ano: null, peso_maduro: 920, frame: 4.2, circunferencia_escrotal: 42.0, padre: "DOBLEHACHE 293 BIGUA-T/E", madre: "ESENCIAL JULIANA PICU", pedigree: "Tehuelche x Esencial x Jewlian 4214", criador: "Cabaña La Esencia", propietario: "Cabaña La Esencia", sexo: "M", tipo: "Toro Reproductor", es_propio: false, tiene_deps: true, deps: { gest: "-0.3", nacer: "-2.0", dest: "+0.5", leche: "-0.6", final: "+8.7", ce: "+0.4", altura: "+0.8", egd: "+0.19", egc: "+0.40", aob: "+0.18", gi: "-1.2", cm: "-" }, precs: { gest: "55", nacer: "65", dest: "71", leche: "63", final: "57", ce: "67", altura: "53", egd: "67", egc: "63", aob: "64", gi: "62", cm: "-" }, percs: { gest: "-", nacer: "5%", dest: "-", leche: "-", final: "20%", ce: "-", altura: "-", egd: "-", egc: "-", aob: "2%", gi: "-", cm: "-" } },
@@ -759,7 +849,6 @@
       { id: "toro-anguson", nombre: "ANGUS ON", hba: "914741", rp: "SI 2216", fecha_nacimiento: "2021-12-10", peso_nacer: 29, peso_205d: 365, peso_ano: 540, peso_maduro: 970, frame: 4.1, circunferencia_escrotal: 42.0, padre: "DUFF NEW EDITION 6108", madre: "RED SCNJ MASTER 14U", pedigree: "Mr Angus x Master x End Cut", criador: "Duff Cattle Co.", propietario: "Select Debernardi y JR Ranch", sexo: "M", tipo: "Toro Reproductor", es_propio: false, tiene_deps: true, deps: { gest: "+16", nacer: "-1.5", dest: "+47", leche: "+20", final: "+73", ce: "+0.61", altura: "+5", egd: "-0.03", egc: "0.01", aob: "-0.00", gi: "0.0", cm: "-" }, precs: { gest: "44", nacer: "45", dest: "49", leche: "23", final: "44", ce: "29", altura: "40", egd: "40", egc: "38", aob: "35", gi: "36", cm: "31" }, percs: { gest: "24%", nacer: "-", dest: "9%", leche: "11%", final: "-", ce: "4%", altura: "25%", egd: "18%", egc: "-", aob: "-", gi: "19%", cm: "-" } },
       { id: "toro-macangus", nombre: "MAC ANGUS", hba: "845478", rp: "3672", fecha_nacimiento: "2017-08-24", peso_nacer: 31, peso_205d: 224, peso_ano: 443, peso_maduro: 850, frame: 4.5, circunferencia_escrotal: 39.5, padre: "DUFF NEW EDITION 6108", madre: "SAV PIONEER 7301", pedigree: "Mr Angus x Pioneer x Catriel", criador: "Cab. Payma", propietario: "Cab. Payma / Cab. La Guagua / Omar Jubete / MV Emanuel Muñoz", sexo: "M", tipo: "Toro Reproductor", es_propio: false, tiene_deps: true, deps: { gest: "-2.5", nacer: "-0.3", dest: "+5.0", leche: "+1.7", final: "+8.9", ce: "+1.3", altura: "+0.9", egd: "+0.6", egc: "-0.04", aob: "+0.22", gi: "-0.04", cm: "+0.2" }, precs: { gest: "72", nacer: "79", dest: "76", leche: "25", final: "61", ce: "69", altura: "80", egd: "35", egc: "71", aob: "69", gi: "70", cm: "69" }, percs: { gest: "2%", nacer: "-", dest: "-", leche: "25%", final: "-", ce: "-", altura: "-", egd: "-", egc: "-", aob: "-", gi: "-", cm: "-" } },
       { id: "toro-picante", nombre: "PICANTE", hba: "904497", rp: "1379", fecha_nacimiento: "2023-09-22", peso_nacer: 44, peso_205d: 280, peso_ano: null, peso_maduro: 1050, frame: 4.8, circunferencia_escrotal: 45.0, padre: "MALELE 875 BATACAZO T/E", madre: "TRES MARIAS A766 RESOURCE 8916-T/", pedigree: "Batacazo x Resource x Candelero", criador: "Arandu S.A.", propietario: "Select Debernardi, Micloin SRL, Indio Nuevo SA, La Benedicta, Rubeta SA, La Nata SA, Est. La Llovizna SA, Gente Chica SRL Rodeo El Delmo SA, Arandu SA.", sexo: "M", tipo: "Toro Reproductor", es_propio: false, tiene_deps: true, deps: { gest: "+0.2", nacer: "+0.5", dest: "+8.7", leche: "+4.0", final: "+11.1", ce: "+1.1", altura: "+1.1", egd: "+0.73", egc: "+0.99", aob: "-0.09", gi: "-0.2", cm: "-" }, precs: { gest: "31", nacer: "49", dest: "47", leche: "39", final: "40", ce: "31", altura: "49", egd: "33", egc: "31", aob: "32", gi: "33", cm: "32" }, percs: { gest: "-", nacer: "-", dest: "15%", leche: "-", final: "-", ce: "10%", altura: "-", egd: "3%", egc: "10%", aob: "-", gi: "-", cm: "-" } },
-
       { 
         id: "toro-remixado", 
         nombre: "DON JOSE 1717 REMIXADO 6234 T/E", 
@@ -788,7 +877,6 @@
         precs: { gest: "0.81", nacer: "0.91", dest: "0.89", leche: "0.69", final: "0.81", ce: "0.86", altura: "0.89", egd: "0.81", egc: "0.81", aob: "0.82", gi: "0.82", cm: "0.81" }, 
         percs: { gest: "10%", nacer: "20%", dest: "80%", leche: "10%", final: "65%", ce: "80%", altura: "65%", egd: "20%", egc: "15%", aob: "35%", gi: "85%", cm: "-" } 
       },
-
       { id: "toro-caracho", nombre: "Caracho", hba: "845146", rp: "2105", fecha_nacimiento: "2017-08-13", peso_nacer: 36, peso_205d: 343, peso_ano: 600, peso_maduro: 980, frame: 4.1, circunferencia_escrotal: 40, pedigree: "Remixado x Bismarck x Final Dream", criador: "Cabaña Don José", propietario: "Cabaña Don José", sexo: "M", tipo: "Toro Reproductor", es_propio: false },
       { id: "toro-record", nombre: "Record", hba: "870459", rp: "579", fecha_nacimiento: "2020-08-08", peso_nacer: 34, peso_205d: 325, peso_ano: 630, peso_maduro: 1020, frame: 4.3, circunferencia_escrotal: 43, pedigree: "Reckoning x Yesquero x Perks Advance", criador: "Los Murmullos", propietario: "Cabaña El Cortijo de Campos de Torres", sexo: "M", tipo: "Toro Reproductor", es_propio: false },
       { id: "toro-halcon", nombre: "Halcón", hba: "884763", rp: "8554", fecha_nacimiento: "2021-08-06", peso_nacer: 38, peso_205d: 321, peso_ano: 612, peso_maduro: 875, frame: 5.0, circunferencia_escrotal: 43, pedigree: "Prolijo x Quebrantador x Saugahatchee 3000", criador: "Cabaña La Rubeta", propietario: "Cabaña La Rubeta / Eaglehawk Angus", sexo: "M", tipo: "Toro Reproductor", es_propio: false },
@@ -812,11 +900,7 @@
         inputNacFecha.value = hoy;
       }
 
-      window.addEventListener("online", actualizarEstadoRed);
-      window.addEventListener("offline", actualizarEstadoRed);
-      actualizarEstadoRed();
-
-      setTimeout(cargarDatosSeguro, 50);
+      cargarDatosSeguro();
     });
 
     function ocultarImagenRota(imgEl, idPlaceholder) {
@@ -825,20 +909,20 @@
       if (ph) ph.classList.remove("hidden");
     }
 
-    function actualizarEstadoRed() {
+    function marcarEstadoOnline(isOnline) {
       const el = document.getElementById("estado-red");
       if (!el) return;
-      if (navigator.onLine) {
+      if (isOnline) {
         el.innerText = "Online";
         el.className = "text-[11px] bg-green-600 px-2 py-0.5 rounded-full font-semibold shrink-0";
       } else {
         el.innerText = "Offline (Modo Local)";
-        el.className = "text-[11px] bg-amber-600 px-2 py-0.5 rounded-full font-semibold shrink-0";
+        el.className = "text-[11px] bg-amber-600 px-2.5 py-1 rounded-full font-bold shrink-0 shadow-sm";
       }
     }
 
     async function cambiarVista(vista) {
-      ["inventario", "toros", "servicios", "nacimientos", "arbol"].forEach((v) => {
+      ["inventario", "toros", "servicios", "nacimientos", "piquetes"].forEach((v) => {
         const seccion = document.getElementById(`vista-${v}`);
         const btn = document.getElementById(`btn-${v}`);
         if (seccion) seccion.classList.add("hidden");
@@ -854,34 +938,21 @@
       if (vista === "toros") renderizarToros(ganadoMemoria);
       if (vista === "servicios") {
         poblarSelectTorosServicio();
-        await recargarServiciosDesdeSupa();
+        filtrarServiciosLista();
       }
       if (vista === "nacimientos") {
-        await recargarNacimientosDesdeSupa();
+        renderizarTablaNacimientos(nacimientosMemoria);
+      }
+      if (vista === "piquetes") {
+        renderizarPiquetes();
       }
     }
 
+    // --- CARGA OFFLINE-FIRST ROBUSTA ---
     async function cargarDatosSeguro() {
       try {
-        let ganadoSupa = [];
-
-        if (navigator.onLine && typeof supabaseClient !== 'undefined') {
-          try {
-            const { data: dataSupa, error } = await supabaseClient.from('ganado').select('*');
-            if (!error && dataSupa && dataSupa.length > 0) {
-              ganadoSupa = dataSupa;
-              localStorage.setItem("ganado_santa_candida", JSON.stringify(ganadoSupa));
-            }
-          } catch (errSup) {
-            console.warn("Aviso de conexión con Supabase, usando caché local:", errSup);
-          }
-        }
-
-        if (!ganadoSupa || ganadoSupa.length === 0) {
-          ganadoSupa = JSON.parse(localStorage.getItem("ganado_santa_candida") || "[]");
-        }
-
-        let baseGanado = Array.isArray(ganadoSupa) ? [...ganadoSupa] : [];
+        let ganadoLocal = JSON.parse(localStorage.getItem("ganado_santa_candida") || "[]");
+        let baseGanado = Array.isArray(ganadoLocal) && ganadoLocal.length > 0 ? [...ganadoLocal] : [];
         
         TOROS_CATALOGO_INICIAL.forEach(toroCat => {
           const idx = baseGanado.findIndex(a => String(a.rp).toLowerCase() === String(toroCat.rp).toLowerCase() || (a.id && a.id === toroCat.id));
@@ -893,80 +964,491 @@
         });
 
         ganadoMemoria = baseGanado;
-        await recargarServiciosDesdeSupa();
-        await recargarNacimientosDesdeSupa();
+        serviciosMemoria = JSON.parse(localStorage.getItem("servicios_santa_candida") || "[]");
+        nacimientosMemoria = JSON.parse(localStorage.getItem("nacimientos_santa_candida") || "[]");
+        piquetesMemoria = JSON.parse(localStorage.getItem("piquetes_santa_candida") || "[]");
+
+        // Crear piquetes de ejemplo la primera vez si está vacío
+        if (!Array.isArray(piquetesMemoria) || piquetesMemoria.length === 0) {
+          piquetesMemoria = [
+            {
+              id: crypto.randomUUID(),
+              nombre: "Piquete 1 - Toros Preparación",
+              descripcion: "Encierre principal - Suplementación",
+              animales: []
+            },
+            {
+              id: crypto.randomUUID(),
+              nombre: "Piquete 2 - Vaquillonas / Vientres",
+              descripcion: "Lote selección",
+              animales: []
+            }
+          ];
+          localStorage.setItem("piquetes_santa_candida", JSON.stringify(piquetesMemoria));
+        }
+
         renderizarGanado(ganadoMemoria);
+        renderizarToros(ganadoMemoria);
         poblarSelectTorosServicio();
+        filtrarServiciosLista();
+        renderizarTablaNacimientos(nacimientosMemoria);
+        renderizarPiquetes();
+
+        if (navigator.onLine && typeof supabaseClient !== 'undefined') {
+          try {
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3500));
+            
+            const fetchGanado = supabaseClient.from('ganado').select('*');
+            const { data: dataSupa, error } = await Promise.race([fetchGanado, timeoutPromise]);
+
+            if (!error && dataSupa && dataSupa.length > 0) {
+              let supaMerged = [...dataSupa];
+              TOROS_CATALOGO_INICIAL.forEach(toroCat => {
+                const idx = supaMerged.findIndex(a => String(a.rp).toLowerCase() === String(toroCat.rp).toLowerCase() || (a.id && a.id === toroCat.id));
+                if (idx !== -1) {
+                  supaMerged[idx] = { ...toroCat, ...supaMerged[idx] };
+                } else {
+                  supaMerged.push(toroCat);
+                }
+              });
+              ganadoMemoria = supaMerged;
+              localStorage.setItem("ganado_santa_candida", JSON.stringify(ganadoMemoria));
+              renderizarGanado(ganadoMemoria);
+              renderizarToros(ganadoMemoria);
+              poblarSelectTorosServicio();
+            }
+
+            const { data: srvData } = await supabaseClient.from('servicios').select('*').order('fecha_servicio', { ascending: false });
+            if (srvData && srvData.length > 0) {
+              serviciosMemoria = srvData;
+              localStorage.setItem("servicios_santa_candida", JSON.stringify(serviciosMemoria));
+              filtrarServiciosLista();
+            }
+
+            const { data: nacData } = await supabaseClient.from('nacimientos').select('*').order('fecha_nacimiento', { ascending: true });
+            if (nacData && nacData.length > 0) {
+              nacimientosMemoria = nacData;
+              localStorage.setItem("nacimientos_santa_candida", JSON.stringify(nacimientosMemoria));
+              renderizarTablaNacimientos(nacimientosMemoria);
+            }
+
+            marcarEstadoOnline(true);
+          } catch (errSup) {
+            console.warn("Sin conexión real a Supabase, operando con datos locales:", errSup);
+            marcarEstadoOnline(false);
+          }
+        } else {
+          marcarEstadoOnline(false);
+        }
       } catch (err) {
         console.error("Error al cargar datos:", err);
         ganadoMemoria = TOROS_CATALOGO_INICIAL;
         renderizarGanado(ganadoMemoria);
+        marcarEstadoOnline(false);
       }
     }
 
+    /* ==========================================================
+       SECCIÓN PIQUETES / LOTES EDITABLES (100% OFFLINE-FIRST)
+       ========================================================== */
+    function guardarPiquetesEnStorage() {
+      localStorage.setItem("piquetes_santa_candida", JSON.stringify(piquetesMemoria));
+    }
+
+    function abrirModalCrearPiquete(piqueteId = null) {
+      const titulo = document.getElementById("modal-piq-titulo");
+      const inputId = document.getElementById("piq-edit-id");
+      const inputNom = document.getElementById("piq-nombre");
+      const inputDesc = document.getElementById("piq-descripcion");
+
+      if (piqueteId) {
+        const piq = piquetesMemoria.find(p => p.id === piqueteId);
+        if (!piq) return;
+        titulo.innerText = "✏️ Editar Piquete / Lote";
+        inputId.value = piq.id;
+        inputNom.value = piq.nombre || "";
+        inputDesc.value = piq.descripcion || "";
+      } else {
+        titulo.innerText = "🚧 Nuevo Piquete / Lote";
+        inputId.value = "";
+        inputNom.value = "";
+        inputDesc.value = "";
+      }
+
+      document.getElementById("modal-piquete-form").classList.remove("hidden");
+    }
+
+    function cerrarModalPiqueteForm() {
+      document.getElementById("modal-piquete-form").classList.add("hidden");
+    }
+
+    function guardarPiqueteForm(e) {
+      e.preventDefault();
+      const id = document.getElementById("piq-edit-id").value;
+      const nombre = document.getElementById("piq-nombre").value.trim();
+      const descripcion = document.getElementById("piq-descripcion").value.trim();
+
+      if (!nombre) return;
+
+      if (id) {
+        const idx = piquetesMemoria.findIndex(p => p.id === id);
+        if (idx !== -1) {
+          piquetesMemoria[idx].nombre = nombre;
+          piquetesMemoria[idx].descripcion = descripcion;
+        }
+      } else {
+        piquetesMemoria.push({
+          id: crypto.randomUUID(),
+          nombre,
+          descripcion,
+          animales: []
+        });
+      }
+
+      guardarPiquetesEnStorage();
+      cerrarModalPiqueteForm();
+      renderizarPiquetes();
+    }
+
+    function eliminarPiquete(piqueteId) {
+      if (!confirm("¿Seguro que querés eliminar este piquete y su lista de animales encerrados?")) return;
+      piquetesMemoria = piquetesMemoria.filter(p => p.id !== piqueteId);
+      guardarPiquetesEnStorage();
+      renderizarPiquetes();
+    }
+
+    function abrirModalAnimalPiquete(piqueteId, itemId = null) {
+      const piq = piquetesMemoria.find(p => p.id === piqueteId);
+      if (!piq) return;
+
+      document.getElementById("ap-piquete-id").value = piqueteId;
+      document.getElementById("ap-sugerencias").classList.add("hidden");
+      const hoy = new Date().toISOString().split("T")[0];
+
+      if (itemId) {
+        const item = (piq.animales || []).find(a => a.id === itemId);
+        if (!item) return;
+        document.getElementById("modal-ani-piq-titulo").innerText = `✏️ Editar RP ${item.rp} en ${piq.nombre}`;
+        document.getElementById("ap-item-id").value = item.id;
+        document.getElementById("ap-rp").value = item.rp || "";
+        document.getElementById("ap-categoria").value = item.categoria || "Toro";
+        document.getElementById("ap-nombre").value = item.nombre || "";
+        document.getElementById("ap-padre").value = item.padre || "";
+        document.getElementById("ap-madre").value = item.madre || "";
+        document.getElementById("ap-pedigree").value = item.pedigree || "";
+        document.getElementById("ap-peso").value = item.peso || "";
+        document.getElementById("ap-fecha-peso").value = item.fecha_peso || hoy;
+        document.getElementById("ap-ce-frame").value = item.ce_frame || "";
+        document.getElementById("ap-notas").value = item.notas || "";
+      } else {
+        document.getElementById("modal-ani-piq-titulo").innerText = `➕ Agregar RP a ${piq.nombre}`;
+        document.getElementById("ap-item-id").value = "";
+        document.getElementById("ap-rp").value = "";
+        document.getElementById("ap-categoria").value = "Toro";
+        document.getElementById("ap-nombre").value = "";
+        document.getElementById("ap-padre").value = "";
+        document.getElementById("ap-madre").value = "";
+        document.getElementById("ap-pedigree").value = "";
+        document.getElementById("ap-peso").value = "";
+        document.getElementById("ap-fecha-peso").value = hoy;
+        document.getElementById("ap-ce-frame").value = "";
+        document.getElementById("ap-notas").value = "";
+      }
+
+      document.getElementById("modal-animal-piquete").classList.remove("hidden");
+    }
+
+    function cerrarModalAnimalPiquete() {
+      document.getElementById("modal-animal-piquete").classList.add("hidden");
+    }
+
+    function autocompletarAnimalPiquete() {
+      const q = document.getElementById("ap-rp").value.trim().toLowerCase();
+      const boxSug = document.getElementById("ap-sugerencias");
+      if (!q) {
+        boxSug.classList.add("hidden");
+        return;
+      }
+
+      const matches = ganadoMemoria.filter(a => String(a.rp || "").toLowerCase().includes(q)).slice(0, 6);
+      if (matches.length === 0) {
+        boxSug.classList.add("hidden");
+        return;
+      }
+
+      boxSug.innerHTML = matches.map(a => `
+        <div onclick='seleccionarSugerenciaPiquete(${JSON.stringify(a).replace(/'/g, "&#39;")})' class="p-2 hover:bg-green-50 cursor-pointer text-xs border-b last:border-0 flex justify-between items-center">
+          <div>
+            <span class="font-extrabold text-green-900">RP ${a.rp}</span>
+            <span class="text-gray-600 ml-1">${a.nombre || ''}</span>
+          </div>
+          <span class="text-[10px] text-blue-700 font-bold">Usar datos</span>
+        </div>
+      `).join("");
+      boxSug.classList.remove("hidden");
+    }
+
+    function seleccionarSugerenciaPiquete(a) {
+      document.getElementById("ap-sugerencias").classList.add("hidden");
+      document.getElementById("ap-rp").value = a.rp || "";
+      document.getElementById("ap-nombre").value = a.nombre || "";
+      document.getElementById("ap-padre").value = a.padre || a.nombre_padre || "";
+      document.getElementById("ap-madre").value = a.madre || a.nombre_madre || "";
+
+      const pedParts = [];
+      if (a.pedigree) pedParts.push(a.pedigree);
+      if (a.hba) pedParts.push(`HBA: ${a.hba}`);
+      document.getElementById("ap-pedigree").value = pedParts.join(" | ");
+
+      if (esToroReproductor(a)) {
+        document.getElementById("ap-categoria").value = "Toro";
+      } else {
+        document.getElementById("ap-categoria").value = "Vaca";
+      }
+
+      const ceFrame = [];
+      if (a.circunferencia_escrotal || a.ce) ceFrame.push(`CE: ${a.circunferencia_escrotal || a.ce} cm`);
+      if (a.frame) ceFrame.push(`Frame: ${a.frame}`);
+      if (ceFrame.length > 0) document.getElementById("ap-ce-frame").value = ceFrame.join(" / ");
+    }
+
+    function guardarAnimalEnPiquete(e) {
+      e.preventDefault();
+      const piqueteId = document.getElementById("ap-piquete-id").value;
+      const itemId = document.getElementById("ap-item-id").value;
+      const piq = piquetesMemoria.find(p => p.id === piqueteId);
+      if (!piq) return;
+
+      if (!Array.isArray(piq.animales)) piq.animales = [];
+
+      const datosAnimal = {
+        id: itemId || crypto.randomUUID(),
+        rp: document.getElementById("ap-rp").value.trim().toUpperCase(),
+        categoria: document.getElementById("ap-categoria").value,
+        nombre: document.getElementById("ap-nombre").value.trim(),
+        padre: document.getElementById("ap-padre").value.trim(),
+        madre: document.getElementById("ap-madre").value.trim(),
+        pedigree: document.getElementById("ap-pedigree").value.trim(),
+        peso: document.getElementById("ap-peso").value ? Number(document.getElementById("ap-peso").value) : null,
+        fecha_peso: document.getElementById("ap-fecha-peso").value || "",
+        ce_frame: document.getElementById("ap-ce-frame").value.trim(),
+        notas: document.getElementById("ap-notas").value.trim()
+      };
+
+      if (itemId) {
+        const idx = piq.animales.findIndex(a => a.id === itemId);
+        if (idx !== -1) piq.animales[idx] = datosAnimal;
+      } else {
+        piq.animales.push(datosAnimal);
+      }
+
+      guardarPiquetesEnStorage();
+      cerrarModalAnimalPiquete();
+      renderizarPiquetes();
+    }
+
+    function eliminarAnimalDePiquete(piqueteId, itemId) {
+      if (!confirm("¿Sacar este RP del piquete?")) return;
+      const piq = piquetesMemoria.find(p => p.id === piqueteId);
+      if (!piq) return;
+      piq.animales = (piq.animales || []).filter(a => a.id !== itemId);
+      guardarPiquetesEnStorage();
+      renderizarPiquetes();
+    }
+
+    function renderizarPiquetes() {
+      const contenedor = document.getElementById("contenedor-piquetes");
+      if (!contenedor) return;
+
+      const filtroEl = document.getElementById("input-buscar-piquete");
+      const q = filtroEl ? filtroEl.value.trim().toLowerCase() : "";
+
+      if (!piquetesMemoria || piquetesMemoria.length === 0) {
+        contenedor.innerHTML = `<div class="bg-white p-6 rounded-xl text-center text-sm text-gray-500 border">No hay piquetes creados. Tocá <strong>"+ Nuevo Piquete / Lote"</strong> para empezar.</div>`;
+        return;
+      }
+
+      const htmlPiquetes = piquetesMemoria.map(piq => {
+        const animalesTodos = piq.animales || [];
+        const coincidePiquete = !q || (piq.nombre || "").toLowerCase().includes(q) || (piq.descripcion || "").toLowerCase().includes(q);
+        
+        const animalesFiltrados = coincidePiquete 
+          ? animalesTodos 
+          : animalesTodos.filter(a => 
+              String(a.rp || "").toLowerCase().includes(q) || 
+              (a.nombre || "").toLowerCase().includes(q) ||
+              (a.padre || "").toLowerCase().includes(q) ||
+              (a.pedigree || "").toLowerCase().includes(q)
+            );
+
+        if (q && !coincidePiquete && animalesFiltrados.length === 0) return "";
+
+        // Cálculo de promedio de peso del lote
+        const conPeso = animalesTodos.filter(a => a.peso && !isNaN(a.peso));
+        const promedioPeso = conPeso.length > 0 
+          ? Math.round(conPeso.reduce((acc, a) => acc + Number(a.peso), 0) / conPeso.length) 
+          : null;
+
+        const filasHtml = animalesFiltrados.length === 0 
+          ? `<tr><td colspan="6" class="p-4 text-center text-xs text-gray-400">Sin animales encerrados en este lote todavía.</td></tr>`
+          : animalesFiltrados.map(a => `
+              <tr class="hover:bg-green-50/70 transition-colors">
+                <td class="p-2.5 sm:p-3 whitespace-nowrap">
+                  <span class="font-extrabold text-green-900 text-xs sm:text-sm">RP ${a.rp}</span>
+                  <span class="block text-[10px] text-gray-500 font-semibold">${a.categoria || ''}</span>
+                </td>
+                <td class="p-2.5 sm:p-3 min-w-[130px]">
+                  <p class="font-bold text-gray-900 text-xs">${a.nombre || '-'}</p>
+                  ${a.ce_frame ? `<span class="text-[10px] bg-blue-50 text-blue-800 px-1.5 py-0.5 rounded font-semibold inline-block mt-0.5">${a.ce_frame}</span>` : ''}
+                </td>
+                <td class="p-2.5 sm:p-3 min-w-[150px] text-xs">
+                  ${a.padre ? `<p class="text-blue-900 font-semibold truncate">P: ${a.padre}</p>` : ''}
+                  ${a.madre ? `<p class="text-pink-900 font-semibold truncate">M: ${a.madre}</p>` : ''}
+                  ${a.pedigree ? `<p class="text-[10px] text-gray-500 truncate">${a.pedigree}</p>` : (!a.padre && !a.madre ? '<span class="text-gray-400">-</span>' : '')}
+                </td>
+                <td class="p-2.5 sm:p-3 whitespace-nowrap">
+                  ${a.peso ? `<span class="font-extrabold text-gray-900 text-xs bg-amber-100/80 text-amber-950 px-2 py-0.5 rounded-md">${a.peso} kg</span>` : '<span class="text-xs text-gray-400">Sin pesar</span>'}
+                  ${a.fecha_peso ? `<span class="block text-[9px] text-gray-400 mt-0.5">${a.fecha_peso}</span>` : ''}
+                </td>
+                <td class="p-2.5 sm:p-3 text-xs text-gray-600 min-w-[120px]">
+                  ${a.notas || '-'}
+                </td>
+                <td class="p-2.5 sm:p-3 text-center whitespace-nowrap">
+                  <button onclick="abrirModalAnimalPiquete('${piq.id}', '${a.id}')" class="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg font-bold text-xs" title="Editar RP, peso o pedigree">✏️</button>
+                  <button onclick="eliminarAnimalDePiquete('${piq.id}', '${a.id}')" class="text-red-500 hover:bg-red-50 p-1.5 rounded-lg font-bold text-xs" title="Sacar del piquete">🗑️</button>
+                </td>
+              </tr>
+            `).join("");
+
+        return `
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="bg-green-900 text-white p-3.5 flex flex-wrap justify-between items-center gap-2">
+              <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <h3 class="font-extrabold text-sm sm:text-base">${piq.nombre}</h3>
+                  <span class="bg-green-700 text-green-100 text-[11px] font-bold px-2.5 py-0.5 rounded-full">${animalesTodos.length} cab.</span>
+                  ${promedioPeso ? `<span class="bg-amber-500 text-gray-950 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full">Prom: ${promedioPeso} kg</span>` : ''}
+                </div>
+                ${piq.descripcion ? `<p class="text-xs text-green-200 mt-0.5">${piq.descripcion}</p>` : ''}
+              </div>
+
+              <div class="flex items-center gap-1.5">
+                <button onclick="abrirModalAnimalPiquete('${piq.id}')" class="bg-white text-green-900 hover:bg-green-50 text-xs font-extrabold px-3 py-1.5 rounded-lg shadow-sm">
+                  + Agregar RP
+                </button>
+                <button onclick="abrirModalCrearPiquete('${piq.id}')" class="bg-green-800 hover:bg-green-700 text-white text-xs p-1.5 rounded-lg" title="Editar nombre del piquete">
+                  ✏️
+                </button>
+                <button onclick="eliminarPiquete('${piq.id}')" class="bg-green-800 hover:bg-red-700 text-white text-xs p-1.5 rounded-lg" title="Eliminar piquete">
+                  🗑️
+                </button>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto touch-scroll">
+              <table class="w-full text-left">
+                <thead class="bg-gray-50 text-[10px] uppercase font-bold text-gray-500 border-b">
+                  <tr>
+                    <th class="p-2.5 sm:p-3">RP / Cat.</th>
+                    <th class="p-2.5 sm:p-3">Nombre / Datos</th>
+                    <th class="p-2.5 sm:p-3">Pedigree / Padres</th>
+                    <th class="p-2.5 sm:p-3">Peso Actual</th>
+                    <th class="p-2.5 sm:p-3">Notas</th>
+                    <th class="p-2.5 sm:p-3 text-center">Editar</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                  ${filasHtml}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      contenedor.innerHTML = htmlPiquetes || `<div class="bg-white p-6 rounded-xl text-center text-xs text-gray-500 border">No se encontraron animales o piquetes con ese filtro.</div>`;
+    }
+
+    function exportarExcelPiquetes() {
+      const filas = [];
+      (piquetesMemoria || []).forEach(piq => {
+        (piq.animales || []).forEach(a => {
+          filas.push({
+            "Piquete / Lote": piq.nombre,
+            "Descripción Lote": piq.descripcion || "",
+            "RP": a.rp,
+            "Categoría": a.categoria || "",
+            "Nombre": a.nombre || "",
+            "Padre": a.padre || "",
+            "Madre": a.madre || "",
+            "Pedigree / HBA": a.pedigree || "",
+            "Peso Actual (kg)": a.peso || "",
+            "Fecha Pesada": a.fecha_peso || "",
+            "CE / Frame": a.ce_frame || "",
+            "Observaciones": a.notas || ""
+          });
+        });
+      });
+
+      if (filas.length === 0) {
+        alert("No hay animales cargados en los piquetes para exportar.");
+        return;
+      }
+
+      const worksheet = XLSX.utils.json_to_sheet(filas);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Piquetes");
+      const fechaHoy = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(workbook, `Piquetes_Santa_Candida_${fechaHoy}.xlsx`);
+    }
+
+    /* ==========================================================
+       FUNCIONES DE SERVICIOS, NACIMIENTOS, INVENTARIO Y TOROS
+       ========================================================== */
     async function recargarServiciosDesdeSupa() {
-      let serviciosSupa = [];
+      const serviciosStorage = JSON.parse(localStorage.getItem("servicios_santa_candida") || "[]");
+      serviciosMemoria = serviciosStorage;
+      filtrarServiciosLista();
+
       if (navigator.onLine && typeof supabaseClient !== 'undefined') {
         try {
-          const { data: srvData, error } = await supabaseClient
-            .from('servicios')
-            .select('*')
-            .order('fecha_servicio', { ascending: false });
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000));
+          const fetchSrv = supabaseClient.from('servicios').select('*').order('fecha_servicio', { ascending: false });
+          const { data: srvData, error } = await Promise.race([fetchSrv, timeoutPromise]);
 
-          if (!error && srvData) {
-            serviciosSupa = srvData;
-            localStorage.setItem("servicios_santa_candida", JSON.stringify(serviciosSupa));
+          if (!error && srvData && srvData.length > 0) {
+            serviciosMemoria = srvData;
+            localStorage.setItem("servicios_santa_candida", JSON.stringify(serviciosMemoria));
+            filtrarServiciosLista();
+            marcarEstadoOnline(true);
           }
         } catch(e) {
-          console.warn("Usando servicios locales:", e);
+          marcarEstadoOnline(false);
         }
       }
-
-      const serviciosStorage = JSON.parse(localStorage.getItem("servicios_santa_candida") || "[]");
-      serviciosMemoria = (serviciosSupa && serviciosSupa.length > 0) ? serviciosSupa : serviciosStorage;
-      filtrarServiciosLista();
-    }
-
-    async function cambiarTipoServicioRapido(idServicio, nuevoTipo) {
-      const idx = serviciosMemoria.findIndex(s => s.id === idServicio);
-      if (idx !== -1) {
-        serviciosMemoria[idx].tipo_servicio = nuevoTipo;
-      }
-
-      if (navigator.onLine && typeof supabaseClient !== 'undefined') {
-        try {
-          await supabaseClient.from('servicios').update({ tipo_servicio: nuevoTipo }).eq('id', idServicio);
-        } catch (err) {
-          console.warn("Actualizado localmente por falta de red:", err);
-        }
-      }
-
-      localStorage.setItem("servicios_santa_candida", JSON.stringify(serviciosMemoria));
-      if (fechaDetalleActualStr) abrirDetalleDia(fechaDetalleActualStr);
-      filtrarServiciosLista();
     }
 
     async function recargarNacimientosDesdeSupa() {
-      let nacSupa = [];
+      const nacStorage = JSON.parse(localStorage.getItem("nacimientos_santa_candida") || "[]");
+      nacimientosMemoria = nacStorage;
+      renderizarTablaNacimientos(nacimientosMemoria);
+
       if (navigator.onLine && typeof supabaseClient !== 'undefined') {
         try {
-          const { data, error } = await supabaseClient
-            .from('nacimientos')
-            .select('*')
-            .order('fecha_nacimiento', { ascending: true });
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000));
+          const fetchNac = supabaseClient.from('nacimientos').select('*').order('fecha_nacimiento', { ascending: true });
+          const { data, error } = await Promise.race([fetchNac, timeoutPromise]);
 
-          if (!error && data) {
-            nacSupa = data;
-            localStorage.setItem("nacimientos_santa_candida", JSON.stringify(nacSupa));
+          if (!error && data && data.length > 0) {
+            nacimientosMemoria = data;
+            localStorage.setItem("nacimientos_santa_candida", JSON.stringify(nacimientosMemoria));
+            renderizarTablaNacimientos(nacimientosMemoria);
+            marcarEstadoOnline(true);
           }
         } catch (err) {
-          console.warn("Usando nacimientos locales:", err);
+          marcarEstadoOnline(false);
         }
       }
-
-      const nacStorage = JSON.parse(localStorage.getItem("nacimientos_santa_candida") || "[]");
-      nacimientosMemoria = (nacSupa && nacSupa.length > 0) ? nacSupa : nacStorage;
-      renderizarTablaNacimientos(nacimientosMemoria);
     }
 
     function renderizarTablaNacimientos(lista) {
@@ -1521,9 +2003,9 @@
 
       if (navigator.onLine && typeof supabaseClient !== 'undefined') {
         try {
-          const { data, error } = await supabaseClient.storage
-            .from('fotos-ganado')
-            .list('', { search: `galeria_${rp}_` });
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000));
+          const fetchList = supabaseClient.storage.from('fotos-ganado').list('', { search: `galeria_${rp}_` });
+          const { data, error } = await Promise.race([fetchList, timeoutPromise]);
 
           if (!error && data && data.length > 0) {
             const supaItems = data.map(item => {
@@ -1628,9 +2110,9 @@
 
       if (navigator.onLine && typeof supabaseClient !== 'undefined') {
         try {
-          const { data, error } = await supabaseClient.storage
-            .from('fotos-ganado')
-            .list('', { search: `galeria_toro_${rp}_` });
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000));
+          const fetchList = supabaseClient.storage.from('fotos-ganado').list('', { search: `galeria_toro_${rp}_` });
+          const { data, error } = await Promise.race([fetchList, timeoutPromise]);
 
           if (!error && data && data.length > 0) {
             const supaItems = data.map(item => {
@@ -2309,57 +2791,13 @@
       fechaDetalleActualStr = null;
     }
 
-    /* --- ÁRBOL GENEALÓGICO --- */
-    function buscarAnimalArbol() {
-      const input = document.getElementById("arbol-search");
-      const res = document.getElementById("arbol-results");
-      const card = document.getElementById("arbol-card");
-      if (!input || !res) return;
-
-      const q = input.value.trim().toLowerCase();
-      if (!q) {
-        res.classList.add("hidden");
-        if (card) card.classList.add("hidden");
-        return;
+    function cambiarTipoServicioRapido(idServicio, nuevoTipo) {
+      const idx = serviciosMemoria.findIndex(s => s.id === idServicio);
+      if (idx !== -1) {
+        serviciosMemoria[idx].tipo_servicio = nuevoTipo;
+        localStorage.setItem("servicios_santa_candida", JSON.stringify(serviciosMemoria));
+        filtrarServiciosLista();
       }
-
-      const matches = ganadoMemoria.filter(a => {
-        const rp = String(a.rp || "").toLowerCase();
-        const nombre = String(a.nombre || "").toLowerCase();
-        return rp.includes(q) || nombre.includes(q);
-      }).slice(0, 6);
-
-      if (matches.length === 0) {
-        res.innerHTML = `<div class="p-3 text-xs text-gray-500">No se encontró ningún animal con ese RP o Nombre.</div>`;
-      } else {
-        res.innerHTML = matches.map(a => `
-          <div onclick='seleccionarAnimalArbol(${JSON.stringify(a).replace(/'/g, "&#39;")})' class="p-2.5 hover:bg-green-50 cursor-pointer text-xs flex justify-between items-center border-b last:border-0">
-            <div>
-              <span class="font-bold text-gray-900">RP: ${a.rp || '-'}</span>
-              <span class="text-gray-600 ml-1.5">${a.nombre || ''}</span>
-            </div>
-            <span class="text-[10px] bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-bold">${a.tipo || (esToroReproductor(a) ? 'Toro' : 'Vientre')}</span>
-          </div>
-        `).join("");
-      }
-      res.classList.remove("hidden");
-    }
-
-    function seleccionarAnimalArbol(animal) {
-      document.getElementById("arbol-results").classList.add("hidden");
-      document.getElementById("arbol-search").value = `RP: ${animal.rp || ''} - ${animal.nombre || ''}`;
-
-      const card = document.getElementById("arbol-card");
-      document.getElementById("arb-nombre").innerText = animal.nombre || "Sin Nombre";
-      document.getElementById("arb-sub").innerText = `RP: ${animal.rp || '-'} | HBA: ${animal.hba || '-'}`;
-
-      document.getElementById("arb-padre-nom").innerText = animal.padre || animal.nombre_padre || "No registrado";
-      document.getElementById("arb-padre-rp").innerText = animal.rp_padre ? `RP: ${animal.rp_padre}` : "";
-
-      document.getElementById("arb-madre-nom").innerText = animal.madre || animal.nombre_madre || "No registrada";
-      document.getElementById("arb-madre-rp").innerText = animal.rp_madre ? `RP: ${animal.rp_madre}` : "";
-
-      card.classList.remove("hidden");
     }
   </script>
 </body>
