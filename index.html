@@ -437,7 +437,6 @@
     </div>
   </div>
 
-  
   <!-- MODAL EXPORTAR EXCEL SRA -->
   <div id="modal-exportar-excel" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-3 sm:p-4">
     <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl relative max-h-[92vh] overflow-y-auto touch-scroll">
@@ -1433,6 +1432,39 @@
       renderizarPiquetes();
     }
 
+    function abrirFichaAnimalDesdePiquete(animalPiquete) {
+      const rpBuscado = String(animalPiquete.rp || "").trim().toLowerCase();
+      const animalInventario = ganadoMemoria.find(a => String(a.rp || "").trim().toLowerCase() === rpBuscado);
+
+      if (animalInventario) {
+        if (esToroReproductor(animalInventario)) {
+          abrirFichaToro(animalInventario);
+        } else {
+          abrirFichaAnimal(animalInventario);
+        }
+      } else {
+        const animalTemp = {
+          id: animalPiquete.id || crypto.randomUUID(),
+          rp: animalPiquete.rp,
+          nombre: animalPiquete.nombre || `RP ${animalPiquete.rp}`,
+          categoria: animalPiquete.categoria || "Vientre",
+          tipo: animalPiquete.categoria || "Propio",
+          fecha_nacimiento: animalPiquete.fecha_nacimiento || "",
+          padre: animalPiquete.padre || "",
+          madre: animalPiquete.madre || "",
+          pedigree: animalPiquete.pedigree || "",
+          circunferencia_escrotal: animalPiquete.ce_frame || "",
+          ce: animalPiquete.ce_frame || ""
+        };
+
+        if (esToroReproductor(animalTemp) || String(animalPiquete.categoria || "").toLowerCase().includes("toro")) {
+          abrirFichaToro(animalTemp);
+        } else {
+          abrirFichaAnimal(animalTemp);
+        }
+      }
+    }
+
     function renderizarPiquetes() {
       const contenedor = document.getElementById("contenedor-piquetes");
       if (!contenedor) return;
@@ -1468,7 +1500,7 @@
         const filasHtml = animalesFiltrados.length === 0 
           ? `<tr><td colspan="6" class="p-4 text-center text-xs text-gray-400">Sin animales encerrados en este lote todavía.</td></tr>`
           : animalesFiltrados.map(a => `
-              <tr class="hover:bg-green-50/70 transition-colors">
+              <tr onclick='abrirFichaAnimalDesdePiquete(${JSON.stringify(a).replace(/'/g, "&#39;")})' class="hover:bg-green-50/70 transition-colors cursor-pointer" title="Ver ficha completa del animal">
                 <td class="p-2.5 sm:p-3 whitespace-nowrap">
                   <span class="font-extrabold text-green-900 text-xs sm:text-sm">RP ${a.rp}</span>
                   <span class="block text-[10px] text-gray-500 font-semibold">${a.categoria || ''}</span>
@@ -1491,8 +1523,8 @@
                   ${a.notas || '-'}
                 </td>
                 <td class="p-2.5 sm:p-3 text-center whitespace-nowrap">
-                  <button onclick="abrirModalAnimalPiquete('${piq.id}', '${a.id}')" class="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg font-bold text-xs" title="Editar RP, peso o pedigree">✏️</button>
-                  <button onclick="eliminarAnimalDePiquete('${piq.id}', '${a.id}')" class="text-red-500 hover:bg-red-50 p-1.5 rounded-lg font-bold text-xs" title="Sacar del piquete">🗑️</button>
+                  <button onclick="event.stopPropagation(); abrirModalAnimalPiquete('${piq.id}', '${a.id}')" class="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg font-bold text-xs" title="Editar RP, peso o pedigree">✏️</button>
+                  <button onclick="event.stopPropagation(); eliminarAnimalDePiquete('${piq.id}', '${a.id}')" class="text-red-500 hover:bg-red-50 p-1.5 rounded-lg font-bold text-xs" title="Sacar del piquete">🗑️</button>
                 </td>
               </tr>
             `).join("");
@@ -1814,7 +1846,6 @@
       await recargarNacimientosDesdeSupa();
     }
 
-    
     function abrirModalExportarExcel() {
       document.getElementById("modal-exportar-excel").classList.remove("hidden");
     }
@@ -1873,31 +1904,6 @@
       const sufijoSexo = filtroSexo === 'M' ? '_Machos' : filtroSexo === 'F' ? '_Hembras' : '_Todos';
       XLSX.writeFile(workbook, `Registro_Nacimientos_SRA_Santa_Candida${sufijoSexo}_${fechaHoy}.xlsx`);
       cerrarModalExportarExcel();
-    }
-
-    function descargarExcelSRA() {
-      if (!nacimientosMemoria || nacimientosMemoria.length === 0) {
-        alert("No hay nacimientos para exportar.");
-        return;
-      }
-
-      const datosExcel = nacimientosMemoria.map(item => ({
-        "Día de Nacimiento": item.fecha_nacimiento,
-        "RP de la Cría": item.rp_cria || "", 
-        "Sexo (M/F)": item.sexo,
-        "RP Madre": item.vaca_rp,
-        "Día de Servicio": item.fecha_servicio || "",
-        "HBA Padre": item.toro_hba || "",
-        "Nombre del Padre": item.toro_nombre || "",
-        "Peso al Nacer (kg)": item.peso_al_nacer || "" 
-      }));
-
-      const worksheet = XLSX.utils.json_to_sheet(datosExcel);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Nacimientos SRA");
-
-      const fechaHoy = new Date().toISOString().split('T')[0];
-      XLSX.writeFile(workbook, `Registro_Nacimientos_SRA_Santa_Candida_${fechaHoy}.xlsx`);
     }
 
     function esToroReproductor(a) {
