@@ -1221,12 +1221,16 @@
 
             const { data: nacData, error: errNac } = await supabaseClient.from('nacimientos').select('*').order('fecha_nacimiento', { ascending: true });
             if (!errNac && nacData) {
-              const idsNube = new Set(nacData.map(n => String(n.id)));
-              const pendientesSubir = nacimientosMemoria.filter(n => n && n.id && !idsNube.has(String(n.id)));
-              
+              const pendientesSubir = nacimientosMemoria.filter(n => n && (n._pendiente_sync || String(n.id).startsWith("local_")));
               if (pendientesSubir.length > 0) {
                 for (const pend of pendientesSubir) {
-                  await supabaseClient.from('nacimientos').upsert([pend]);
+                  const { id: _ignoreId, _pendiente_sync: _ignoreSync, ...limpio } = pend;
+                  await supabaseClient.from('nacimientos').insert([limpio]);
+                }
+                const { data: nacDataRefrescada } = await supabaseClient.from('nacimientos').select('*').order('fecha_nacimiento', { ascending: true });
+                if (nacDataRefrescada) {
+                  nacData.length = 0;
+                  nacData.push(...nacDataRefrescada);
                 }
               }
 
@@ -1856,8 +1860,7 @@
         return;
       }
 
-      const nuevoNac = {
-        id: crypto.randomUUID(),
+      const payloadNac = {
         fecha_nacimiento: document.getElementById("nuevo-nac-fecha").value,
         rp_cria: document.getElementById("nuevo-nac-rpcria").value.trim() || null,
         sexo: document.getElementById("nuevo-nac-sexo").value,
@@ -1868,19 +1871,24 @@
         toro_hba: document.getElementById("nuevo-nac-torohba").value.trim() || 'N/D'
       };
 
-      nacimientosMemoria.push(nuevoNac);
-      localStorage.setItem("nacimientos_santa_candida", JSON.stringify(nacimientosMemoria));
-      renderizarTablaNacimientos(nacimientosMemoria);
-
       let mensajeFinal = "✅ ¡Nacimiento registrado en el dispositivo!";
+      let registroLocal = { ...payloadNac, id: "local_" + Date.now() };
+      let subidoConIdReal = false;
 
       if (navigator.onLine && typeof supabaseClient !== 'undefined') {
         try {
-          const { error } = await supabaseClient.from('nacimientos').insert([nuevoNac]);
+          const { data: insertedRows, error } = await supabaseClient
+            .from('nacimientos')
+            .insert([payloadNac])
+            .select();
           if (error) {
             console.error("Error de Supabase al guardar nacimiento:", error);
             mensajeFinal = `⚠️ Guardado localmente en el dispositivo, pero la nube dio error: ${error.message}`;
           } else {
+            if (insertedRows && insertedRows[0]) {
+              registroLocal = insertedRows[0];
+              subidoConIdReal = true;
+            }
             mensajeFinal = "✅ ¡Nacimiento registrado y sincronizado con éxito!";
           }
         } catch (err) {
@@ -1889,6 +1897,14 @@
       } else {
         mensajeFinal = "✅ ¡Nacimiento guardado en modo local (Offline)!";
       }
+
+      if (!subidoConIdReal) {
+        registroLocal._pendiente_sync = true;
+      }
+
+      nacimientosMemoria.push(registroLocal);
+      localStorage.setItem("nacimientos_santa_candida", JSON.stringify(nacimientosMemoria));
+      renderizarTablaNacimientos(nacimientosMemoria);
 
       cerrarModalNuevoNacimiento();
       alert(mensajeFinal);
@@ -1946,7 +1962,10 @@
 
       if (navigator.onLine && typeof supabaseClient !== 'undefined') {
         try {
-          const { error } = await supabaseClient.from('nacimientos').upsert([{ id, ...datosActualizados }]);
+          const esIdLocal = String(id).startsWith("local_") || isNaN(Number(id));
+          const { error } = esIdLocal
+            ? await supabaseClient.from('nacimientos').insert([datosActualizados])
+            : await supabaseClient.from('nacimientos').upsert([{ id: Number(id), ...datosActualizados }]);
           if (error) {
             console.error("Error de Supabase al actualizar nacimiento:", error);
             alert(`⚠️ Actualizado en el dispositivo, pero Supabase devolvió: ${error.message}`);
