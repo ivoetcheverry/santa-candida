@@ -178,6 +178,10 @@
           </button>
         </div>
       </div>
+      <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex items-center gap-2">
+        <input type="text" id="input-buscar-nacimiento-madre" oninput="filtrarNacimientosPorMadre()" placeholder="🔍 Buscar nacimientos por RP de la madre (o RP cría / padre)..." class="w-full p-2.5 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-green-600 bg-gray-50/50">
+        <button onclick="limpiarFiltroNacimientosMadre()" id="btn-limpiar-filtro-madre" class="hidden bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold px-3 py-2.5 rounded-lg shrink-0">✕ Limpiar</button>
+      </div>
       <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto touch-scroll">
         <table class="w-full text-xs sm:text-sm text-left">
           <thead class="bg-gray-100 text-[10px] sm:text-xs uppercase font-bold text-gray-600 border-b">
@@ -1782,11 +1786,42 @@
       }
     }
 
-    function renderizarTablaNacimientos(lista) {
+    function filtrarNacimientosPorMadre() {
+      const input = document.getElementById("input-buscar-nacimiento-madre");
+      const btnLimpiar = document.getElementById("btn-limpiar-filtro-madre");
+      if (!input) return;
+      const q = input.value.trim().toLowerCase();
+      if (btnLimpiar) {
+        if (q) btnLimpiar.classList.remove("hidden");
+        else btnLimpiar.classList.add("hidden");
+      }
+      if (!q) {
+        renderizarTablaNacimientos(nacimientosMemoria);
+        return;
+      }
+      const filtrados = nacimientosMemoria.filter(n => {
+        const rpMadre = String(n.vaca_rp || "").toLowerCase();
+        const rpCria = String(n.rp_cria || "").toLowerCase();
+        const toroNom = String(n.toro_nombre || "").toLowerCase();
+        return rpMadre.includes(q) || rpCria.includes(q) || toroNom.includes(q);
+      });
+      renderizarTablaNacimientos(filtrados, true);
+    }
+
+    function limpiarFiltroNacimientosMadre() {
+      const input = document.getElementById("input-buscar-nacimiento-madre");
+      if (input) input.value = "";
+      filtrarNacimientosPorMadre();
+    }
+
+    function renderizarTablaNacimientos(lista, esFiltrado = false) {
       const tbody = document.getElementById("tabla-nacimientos-body");
       if (!tbody) return;
       if (!lista || lista.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500">No hay nacimientos registrados aún.</td></tr>`;
+        const msg = esFiltrado
+          ? "No se encontraron nacimientos para ese RP de madre."
+          : "No hay nacimientos registrados aún.";
+        tbody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500">${msg}</td></tr>`;
         return;
       }
       tbody.innerHTML = lista.map(n => {
