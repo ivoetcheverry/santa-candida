@@ -1127,6 +1127,22 @@
       });
     }
 
+    // --- FUSIÓN SEGURA DE NACIMIENTOS (NO PISA REGISTROS LOCALES PENDIENTES) ---
+    function fusionarNacimientosLocalYNube(listaNube, listaLocal) {
+      const mapa = new Map();
+      (listaNube || []).forEach(item => {
+        if (item && item.id) mapa.set(String(item.id), item);
+      });
+      (listaLocal || []).forEach(item => {
+        if (item && item.id && !mapa.has(String(item.id))) {
+          mapa.set(String(item.id), item);
+        }
+      });
+      return Array.from(mapa.values()).sort((a, b) => {
+        return String(a.fecha_nacimiento || '').localeCompare(String(b.fecha_nacimiento || ''));
+      });
+    }
+
     // --- CARGA OFFLINE-FIRST CON SUPABASE ---
     async function cargarDatosSeguro() {
       try {
@@ -1203,9 +1219,18 @@
               filtrarServiciosLista();
             }
 
-            const { data: nacData } = await supabaseClient.from('nacimientos').select('*').order('fecha_nacimiento', { ascending: true });
-            if (nacData && nacData.length > 0) {
-              nacimientosMemoria = nacData;
+            const { data: nacData, error: errNac } = await supabaseClient.from('nacimientos').select('*').order('fecha_nacimiento', { ascending: true });
+            if (!errNac && nacData) {
+              const idsNube = new Set(nacData.map(n => String(n.id)));
+              const pendientesSubir = nacimientosMemoria.filter(n => n && n.id && !idsNube.has(String(n.id)));
+              
+              if (pendientesSubir.length > 0) {
+                for (const pend of pendientesSubir) {
+                  await supabaseClient.from('nacimientos').upsert([pend]);
+                }
+              }
+
+              nacimientosMemoria = fusionarNacimientosLocalYNube(nacData, nacimientosMemoria);
               localStorage.setItem("nacimientos_santa_candida", JSON.stringify(nacimientosMemoria));
               renderizarTablaNacimientos(nacimientosMemoria);
             }
@@ -1741,8 +1766,8 @@
           const fetchNac = supabaseClient.from('nacimientos').select('*').order('fecha_nacimiento', { ascending: true });
           const { data, error } = await Promise.race([fetchNac, timeoutPromise]);
 
-          if (!error && data && data.length > 0) {
-            nacimientosMemoria = data;
+          if (!error && data) {
+            nacimientosMemoria = fusionarNacimientosLocalYNube(data, nacimientosMemoria);
             localStorage.setItem("nacimientos_santa_candida", JSON.stringify(nacimientosMemoria));
             renderizarTablaNacimientos(nacimientosMemoria);
             marcarEstadoOnline(true);
@@ -1765,6 +1790,7 @@
         const alertaRojaHTML = sinServicio 
           ? `<div class="bg-red-50 text-red-700 border border-red-200 text-[10px] px-2 py-1 rounded font-bold mt-1 inline-flex items-center gap-1 shadow-sm">⚠️ Sin Servicio Previo</div>` 
           : '';
+        const idEscapado = String(n.id || '').replace(/'/g, "\'");
 
         return `
           <tr class="hover:bg-green-50 transition-colors">
@@ -1780,10 +1806,10 @@
             <td class="p-2.5 sm:p-3 text-gray-800 font-semibold whitespace-nowrap">${n.toro_nombre || '-'}</td>
             <td class="p-2.5 sm:p-3 text-gray-500">${n.peso_al_nacer ? n.peso_al_nacer + ' kg' : '<span class="text-gray-400 font-normal">Vacío</span>'}</td>
             <td class="p-2.5 sm:p-3 text-center whitespace-nowrap">
-              <button onclick='abrirModalEditarNacimiento(${JSON.stringify(n)})' class="text-blue-600 hover:text-blue-800 font-bold p-1 rounded hover:bg-blue-50 transition-colors mr-1" title="Editar nacimiento">
+              <button onclick="abrirModalEditarNacimientoPorId('${idEscapado}')" class="text-blue-600 hover:text-blue-800 font-bold p-1 rounded hover:bg-blue-50 transition-colors mr-1" title="Editar nacimiento">
                 ✏️
               </button>
-              <button onclick="eliminarNacimiento('${n.id}')" class="text-red-500 hover:text-red-700 font-bold p-1 rounded hover:bg-red-50 transition-colors" title="Eliminar nacimiento">
+              <button onclick="eliminarNacimiento('${idEscapado}')" class="text-red-500 hover:text-red-700 font-bold p-1 rounded hover:bg-red-50 transition-colors" title="Eliminar nacimiento">
                 🗑️
               </button>
             </td>
@@ -1844,18 +1870,35 @@
 
       nacimientosMemoria.push(nuevoNac);
       localStorage.setItem("nacimientos_santa_candida", JSON.stringify(nacimientosMemoria));
+      renderizarTablaNacimientos(nacimientosMemoria);
+
+      let mensajeFinal = "✅ ¡Nacimiento registrado en el dispositivo!";
 
       if (navigator.onLine && typeof supabaseClient !== 'undefined') {
         try {
-          await supabaseClient.from('nacimientos').insert([nuevoNac]);
+          const { error } = await supabaseClient.from('nacimientos').insert([nuevoNac]);
+          if (error) {
+            console.error("Error de Supabase al guardar nacimiento:", error);
+            mensajeFinal = `⚠️ Guardado localmente en el dispositivo, pero la nube dio error: ${error.message}`;
+          } else {
+            mensajeFinal = "✅ ¡Nacimiento registrado y sincronizado con éxito!";
+          }
         } catch (err) {
           console.warn("Guardado localmente, se sincronizará online al reconectar:", err);
         }
+      } else {
+        mensajeFinal = "✅ ¡Nacimiento guardado en modo local (Offline)!";
       }
 
       cerrarModalNuevoNacimiento();
-      alert("✅ ¡Nacimiento registrado con éxito!");
+      alert(mensajeFinal);
       await recargarNacimientosDesdeSupa();
+    }
+
+    function abrirModalEditarNacimientoPorId(id) {
+      const n = nacimientosMemoria.find(item => String(item.id) === String(id));
+      if (!n) return;
+      abrirModalEditarNacimiento(n);
     }
 
     function abrirModalEditarNacimiento(n) {
@@ -1894,15 +1937,20 @@
         toro_hba: document.getElementById("edit-nac-torohba").value || null
       };
 
-      const idx = nacimientosMemoria.findIndex(n => n.id === id);
+      const idx = nacimientosMemoria.findIndex(n => String(n.id) === String(id));
       if (idx !== -1) {
         nacimientosMemoria[idx] = { ...nacimientosMemoria[idx], ...datosActualizados };
         localStorage.setItem("nacimientos_santa_candida", JSON.stringify(nacimientosMemoria));
+        renderizarTablaNacimientos(nacimientosMemoria);
       }
 
       if (navigator.onLine && typeof supabaseClient !== 'undefined') {
         try {
-          await supabaseClient.from('nacimientos').update(datosActualizados).eq('id', id);
+          const { error } = await supabaseClient.from('nacimientos').upsert([{ id, ...datosActualizados }]);
+          if (error) {
+            console.error("Error de Supabase al actualizar nacimiento:", error);
+            alert(`⚠️ Actualizado en el dispositivo, pero Supabase devolvió: ${error.message}`);
+          }
         } catch (err) {
           console.warn("Actualizado localmente:", err);
         }
@@ -1916,12 +1964,16 @@
     async function eliminarNacimiento(idNacimiento) {
       if (!confirm("¿Estás seguro de que querés borrar este registro de nacimiento?")) return;
 
-      nacimientosMemoria = nacimientosMemoria.filter(n => n.id !== idNacimiento);
+      nacimientosMemoria = nacimientosMemoria.filter(n => String(n.id) !== String(idNacimiento));
       localStorage.setItem("nacimientos_santa_candida", JSON.stringify(nacimientosMemoria));
+      renderizarTablaNacimientos(nacimientosMemoria);
 
       if (navigator.onLine && typeof supabaseClient !== 'undefined') {
         try {
-          await supabaseClient.from('nacimientos').delete().eq('id', idNacimiento);
+          const { error } = await supabaseClient.from('nacimientos').delete().eq('id', idNacimiento);
+          if (error) {
+            console.error("Error al eliminar en Supabase:", error);
+          }
         } catch (err) {
           console.warn("Eliminado localmente:", err);
         }
@@ -2384,7 +2436,7 @@
       container.innerHTML = visorFotosActuales.map((item, index) => {
         const esVideo = item.tipo === 'video';
         let contenidoVisual = esVideo 
-          ? `<video src="${item.url}" class="w-full h-full object-cover pointer-events-none" onerror="this.parentElement.innerHTML='<div class=\\'flex items-center justify-center h-full bg-gray-200 text-[10px] text-gray-500\\'>Video local</div>'"></video><div class="absolute inset-0 flex items-center justify-center bg-black/40"><span class="text-white text-[10px] font-bold bg-black/60 px-1 py-0.5 rounded">▶ Video</span></div>`
+          ? `<video src="${item.url}" class="w-full h-full object-cover pointer-events-none" onerror="this.parentElement.innerHTML='<div class=\'flex items-center justify-center h-full bg-gray-200 text-[10px] text-gray-500\'>Video local</div>'"></video><div class="absolute inset-0 flex items-center justify-center bg-black/40"><span class="text-white text-[10px] font-bold bg-black/60 px-1 py-0.5 rounded">▶ Video</span></div>`
           : `<img src="${item.url}" class="w-full h-full object-cover" onerror="this.src='logo.png'">`;
 
         return `
@@ -2498,7 +2550,7 @@
       container.innerHTML = visorFotosActuales.map((item, index) => {
         const esVideo = item.tipo === 'video';
         let contenidoVisual = esVideo 
-          ? `<video src="${item.url}" class="w-full h-full object-cover pointer-events-none" onerror="this.parentElement.innerHTML='<div class=\\'flex items-center justify-center h-full bg-gray-200 text-[10px] text-gray-500\\'>Video local</div>'"></video><div class="absolute inset-0 flex items-center justify-center bg-black/40"><span class="text-white text-[10px] font-bold bg-black/60 px-1 py-0.5 rounded">▶ Video</span></div>`
+          ? `<video src="${item.url}" class="w-full h-full object-cover pointer-events-none" onerror="this.parentElement.innerHTML='<div class=\'flex items-center justify-center h-full bg-gray-200 text-[10px] text-gray-500\'>Video local</div>'"></video><div class="absolute inset-0 flex items-center justify-center bg-black/40"><span class="text-white text-[10px] font-bold bg-black/60 px-1 py-0.5 rounded">▶ Video</span></div>`
           : `<img src="${item.url}" class="w-full h-full object-cover" onerror="this.src='logo.png'">`;
 
         return `
