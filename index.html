@@ -2397,9 +2397,70 @@
       }
     }
 
+    function limpiarNombreArchivoGaleria(nombre, rp, esToro = false) {
+      const prefijo = esToro ? `galeria_toro_${rp}_` : `galeria_${rp}_`;
+      let sinPrefijo = String(nombre || "");
+      if (sinPrefijo.startsWith(prefijo)) {
+        sinPrefijo = sinPrefijo.slice(prefijo.length);
+        sinPrefijo = sinPrefijo.replace(/^\d+_/, "");
+      }
+      return sinPrefijo.toLowerCase();
+    }
+
+    async function eliminarArchivoGaleria(esToro, index) {
+      const item = visorFotosActuales[index];
+      if (!item) return;
+      if (!confirm("¿Eliminar este archivo de la galería?")) return;
+
+      const entidad = esToro ? toroActual : animalActual;
+      if (!entidad) return;
+      const rp = entidad.rp || entidad.id;
+      const storageKey = esToro ? `galeria_toro_items_${rp}` : `galeria_items_${rp}`;
+      const nombreBase = limpiarNombreArchivoGaleria(item.nombre, rp, esToro);
+
+      // 1. Borrar del caché local (incluyendo posibles copias repetidas con el mismo nombre base)
+      let localGaleria = JSON.parse(localStorage.getItem(storageKey) || "[]");
+      localGaleria = localGaleria.filter(i => {
+        const baseI = limpiarNombreArchivoGaleria(i.nombre, rp, esToro);
+        return baseI !== nombreBase && i.url !== item.url;
+      });
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(localGaleria));
+      } catch (e) {}
+
+      // 2. Borrar de Supabase Storage si está online (incluye duplicados en el bucket con mismo nombre base)
+      if (navigator.onLine && typeof supabaseClient !== 'undefined') {
+        try {
+          const prefijoBusqueda = esToro ? `galeria_toro_${rp}_` : `galeria_${rp}_`;
+          const { data: listaSupa } = await supabaseClient.storage.from('fotos-ganado').list('', { search: prefijoBusqueda });
+          const archivosABorrar = new Set();
+          if (item.storageName) archivosABorrar.add(item.storageName);
+          if (item.nombre && item.nombre.startsWith(prefijoBusqueda)) archivosABorrar.add(item.nombre);
+          if (Array.isArray(listaSupa)) {
+            listaSupa.forEach(f => {
+              if (limpiarNombreArchivoGaleria(f.name, rp, esToro) === nombreBase) {
+                archivosABorrar.add(f.name);
+              }
+            });
+          }
+          if (archivosABorrar.size > 0) {
+            await supabaseClient.storage.from('fotos-ganado').remove(Array.from(archivosABorrar));
+          }
+        } catch (err) {
+          console.warn("Error al eliminar en Supabase Storage:", err);
+        }
+      }
+
+      if (esToro) {
+        await renderGaleriaToroSupabase();
+      } else {
+        await renderGaleriaFotosSupabase();
+      }
+    }
+
     async function subirMultimediaSupabase(event) {
-      const files = event.target.files;
-      if (!files || !files.length || !animalActual) return;
+      const files = Array.from(event.target.files || []);
+      if (!files.length || !animalActual) return;
 
       const rp = animalActual.rp || animalActual.id;
       const container = document.getElementById("ficha-galeria");
@@ -2407,7 +2468,7 @@
 
       let localGaleria = JSON.parse(localStorage.getItem(`galeria_items_${rp}`) || "[]");
 
-      for (let file of files) {
+      for (const file of files) {
         let fileAProcesar = file;
         if (file.type.startsWith('image/')) {
           fileAProcesar = await comprimirImagen(file, 1200, 0.75);
@@ -2415,35 +2476,45 @@
           fileAProcesar = await comprimirVideo(file);
         }
 
-        await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = async function(e) {
-            const base64Url = e.target.result;
-            const esVideo = fileAProcesar.type.startsWith('video/') || fileAProcesar.name.match(/\.(mp4|mov|avi|mkv|webm)$/i);
-            const newItem = {
-              url: base64Url,
-              tipo: esVideo ? 'video' : 'imagen',
-              nombre: fileAProcesar.name
-            };
-            localGaleria.push(newItem);
+        const esVideo = fileAProcesar.type.startsWith('video/') || fileAProcesar.name.match(/\.(mp4|mov|avi|mkv|webm)$/i);
+        const nombreLimpio = fileAProcesar.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
+        let subidoANube = false;
 
-            if (navigator.onLine && typeof supabaseClient !== 'undefined') {
-              try {
-                const timestamp = Date.now();
-                const fileName = `galeria_${rp}_${timestamp}_${fileAProcesar.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
-                await supabaseClient.storage.from('fotos-ganado').upload(fileName, fileAProcesar);
-              } catch (err) {
-                console.warn("Archivo guardado offline en caché:", err);
-              }
+        if (navigator.onLine && typeof supabaseClient !== 'undefined') {
+          try {
+            const timestamp = Date.now();
+            const fileName = `galeria_${rp}_${timestamp}_${nombreLimpio}`;
+            const { error } = await supabaseClient.storage.from('fotos-ganado').upload(fileName, fileAProcesar);
+            if (!error) {
+              subidoANube = true;
             }
-            resolve();
-          };
-          reader.readAsDataURL(fileAProcesar);
-        });
+          } catch (err) {
+            console.warn("Archivo guardado offline en caché:", err);
+          }
+        }
+
+        if (!subidoANube) {
+          const base64Url = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.readAsDataURL(fileAProcesar);
+          });
+
+          localGaleria = localGaleria.filter(i => limpiarNombreArchivoGaleria(i.nombre, rp, false) !== nombreLimpio.toLowerCase());
+          localGaleria.push({
+            url: base64Url,
+            tipo: esVideo ? 'video' : 'imagen',
+            nombre: nombreLimpio
+          });
+        }
       }
 
-      localStorage.setItem(`galeria_items_${rp}`, JSON.stringify(localGaleria));
-      renderGaleriaFotosSupabase();
+      try {
+        localStorage.setItem(`galeria_items_${rp}`, JSON.stringify(localGaleria));
+      } catch (e) {
+        console.warn("localStorage lleno:", e);
+      }
+      await renderGaleriaFotosSupabase();
       if (event.target) event.target.value = "";
     }
 
@@ -2453,11 +2524,15 @@
       if (!container) return;  
       const rp = animalActual.rp || animalActual.id;
 
-      let visorItems = [];
       const localItems = JSON.parse(localStorage.getItem(`galeria_items_${rp}`) || "[]");
-      if (localItems.length > 0) {
-        visorItems = [...localItems];
-      }
+      const mapaItems = new Map();
+
+      const agregarSiNoExiste = (item) => {
+        const claveBase = limpiarNombreArchivoGaleria(item.nombre, rp, false) || item.url;
+        if (!mapaItems.has(claveBase)) {
+          mapaItems.set(claveBase, item);
+        }
+      };
 
       if (navigator.onLine && typeof supabaseClient !== 'undefined') {
         try {
@@ -2465,32 +2540,27 @@
           const fetchList = supabaseClient.storage.from('fotos-ganado').list('', { search: `galeria_${rp}_` });
           const { data, error } = await Promise.race([fetchList, timeoutPromise]);
 
-          if (!error && data && data.length > 0) {
-            const supaItems = data.map(item => {
+          if (!error && Array.isArray(data) && data.length > 0) {
+            data.forEach(item => {
               const { data: publicUrlData } = supabaseClient.storage
                 .from('fotos-ganado')
                 .getPublicUrl(item.name);
               const esVideo = item.name.match(/\.(mp4|mov|avi|mkv|webm)$/i);
-              return {
+              agregarSiNoExiste({
                 url: publicUrlData.publicUrl,
                 tipo: esVideo ? 'video' : 'imagen',
-                nombre: item.name
-              };
+                nombre: item.name,
+                storageName: item.name
+              });
             });
-            const nombresExistentes = new Set(visorItems.map(i => i.nombre));
-            supaItems.forEach(si => {
-              if (!nombresExistentes.has(si.nombre)) {
-                visorItems.push(si);
-              }
-            });
-            localStorage.setItem(`galeria_items_${rp}`, JSON.stringify(visorItems));
           }
         } catch (err) {
           console.warn("Usando galería en caché local:", err);
         }
       }
 
-      visorFotosActuales = visorItems;
+      localItems.forEach(item => agregarSiNoExiste(item));
+      visorFotosActuales = Array.from(mapaItems.values());
 
       if (visorFotosActuales.length === 0) {
         container.innerHTML = `<p class="text-xs text-gray-400 col-span-4">No hay fotos o videos registrados.</p>`;
@@ -2506,14 +2576,15 @@
         return `
           <div class="relative group w-full h-14 sm:h-16 bg-gray-100 rounded-lg overflow-hidden border cursor-pointer shadow-sm" onclick="abrirVisorGaleria(${index})">
             ${contenidoVisual}
+            <button type="button" onclick="event.stopPropagation(); eliminarArchivoGaleria(false, ${index})" class="absolute top-0.5 right-0.5 bg-red-600/90 hover:bg-red-700 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow" title="Eliminar">✕</button>
           </div>
         `;
       }).join("");
     }
 
     async function subirMultimediaToroSupabase(event) {
-      const files = event.target.files;
-      if (!files || !files.length || !toroActual) return;
+      const files = Array.from(event.target.files || []);
+      if (!files.length || !toroActual) return;
 
       const rp = toroActual.rp || toroActual.id;
       const container = document.getElementById("toro-galeria");
@@ -2521,7 +2592,7 @@
 
       let localGaleria = JSON.parse(localStorage.getItem(`galeria_toro_items_${rp}`) || "[]");
 
-      for (let file of files) {
+      for (const file of files) {
         let fileAProcesar = file;
         if (file.type.startsWith('image/')) {
           fileAProcesar = await comprimirImagen(file, 1200, 0.75);
@@ -2529,35 +2600,45 @@
           fileAProcesar = await comprimirVideo(file);
         }
 
-        await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = async function(e) {
-            const base64Url = e.target.result;
-            const esVideo = fileAProcesar.type.startsWith('video/') || fileAProcesar.name.match(/\.(mp4|mov|avi|mkv|webm)$/i);
-            const newItem = {
-              url: base64Url,
-              tipo: esVideo ? 'video' : 'imagen',
-              nombre: fileAProcesar.name
-            };
-            localGaleria.push(newItem);
+        const esVideo = fileAProcesar.type.startsWith('video/') || fileAProcesar.name.match(/\.(mp4|mov|avi|mkv|webm)$/i);
+        const nombreLimpio = fileAProcesar.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
+        let subidoANube = false;
 
-            if (navigator.onLine && typeof supabaseClient !== 'undefined') {
-              try {
-                const timestamp = Date.now();
-                const fileName = `galeria_toro_${rp}_${timestamp}_${fileAProcesar.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
-                await supabaseClient.storage.from('fotos-ganado').upload(fileName, fileAProcesar);
-              } catch (err) {
-                console.warn("Archivo guardado offline:", err);
-              }
+        if (navigator.onLine && typeof supabaseClient !== 'undefined') {
+          try {
+            const timestamp = Date.now();
+            const fileName = `galeria_toro_${rp}_${timestamp}_${nombreLimpio}`;
+            const { error } = await supabaseClient.storage.from('fotos-ganado').upload(fileName, fileAProcesar);
+            if (!error) {
+              subidoANube = true;
             }
-            resolve();
-          };
-          reader.readAsDataURL(fileAProcesar);
-        });
+          } catch (err) {
+            console.warn("Archivo guardado offline:", err);
+          }
+        }
+
+        if (!subidoANube) {
+          const base64Url = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.readAsDataURL(fileAProcesar);
+          });
+
+          localGaleria = localGaleria.filter(i => limpiarNombreArchivoGaleria(i.nombre, rp, true) !== nombreLimpio.toLowerCase());
+          localGaleria.push({
+            url: base64Url,
+            tipo: esVideo ? 'video' : 'imagen',
+            nombre: nombreLimpio
+          });
+        }
       }
 
-      localStorage.setItem(`galeria_toro_items_${rp}`, JSON.stringify(localGaleria));
-      renderGaleriaToroSupabase();
+      try {
+        localStorage.setItem(`galeria_toro_items_${rp}`, JSON.stringify(localGaleria));
+      } catch (e) {
+        console.warn("localStorage lleno:", e);
+      }
+      await renderGaleriaToroSupabase();
       if (event.target) event.target.value = "";
     }
 
@@ -2567,11 +2648,15 @@
       if (!container) return;  
       const rp = toroActual.rp || toroActual.id;
 
-      let visorItems = [];
       const localItems = JSON.parse(localStorage.getItem(`galeria_toro_items_${rp}`) || "[]");
-      if (localItems.length > 0) {
-        visorItems = [...localItems];
-      }
+      const mapaItems = new Map();
+
+      const agregarSiNoExiste = (item) => {
+        const claveBase = limpiarNombreArchivoGaleria(item.nombre, rp, true) || item.url;
+        if (!mapaItems.has(claveBase)) {
+          mapaItems.set(claveBase, item);
+        }
+      };
 
       if (navigator.onLine && typeof supabaseClient !== 'undefined') {
         try {
@@ -2579,32 +2664,27 @@
           const fetchList = supabaseClient.storage.from('fotos-ganado').list('', { search: `galeria_toro_${rp}_` });
           const { data, error } = await Promise.race([fetchList, timeoutPromise]);
 
-          if (!error && data && data.length > 0) {
-            const supaItems = data.map(item => {
+          if (!error && Array.isArray(data) && data.length > 0) {
+            data.forEach(item => {
               const { data: publicUrlData } = supabaseClient.storage
                 .from('fotos-ganado')
                 .getPublicUrl(item.name);
               const esVideo = item.name.match(/\.(mp4|mov|avi|mkv|webm)$/i);
-              return {
+              agregarSiNoExiste({
                 url: publicUrlData.publicUrl,
                 tipo: esVideo ? 'video' : 'imagen',
-                nombre: item.name
-              };
+                nombre: item.name,
+                storageName: item.name
+              });
             });
-            const nombresExistentes = new Set(visorItems.map(i => i.nombre));
-            supaItems.forEach(si => {
-              if (!nombresExistentes.has(si.nombre)) {
-                visorItems.push(si);
-              }
-            });
-            localStorage.setItem(`galeria_toro_items_${rp}`, JSON.stringify(visorItems));
           }
         } catch (err) {
           console.warn("Usando galería de toro en caché local:", err);
         }
       }
 
-      visorFotosActuales = visorItems;
+      localItems.forEach(item => agregarSiNoExiste(item));
+      visorFotosActuales = Array.from(mapaItems.values());
 
       if (visorFotosActuales.length === 0) {
         container.innerHTML = `<p class="text-xs text-gray-400 col-span-4">No hay fotos o videos registrados.</p>`;
@@ -2620,6 +2700,7 @@
         return `
           <div class="relative group w-full h-14 sm:h-16 bg-gray-100 rounded-lg overflow-hidden border cursor-pointer shadow-sm" onclick="abrirVisorGaleria(${index})">
             ${contenidoVisual}
+            <button type="button" onclick="event.stopPropagation(); eliminarArchivoGaleria(true, ${index})" class="absolute top-0.5 right-0.5 bg-red-600/90 hover:bg-red-700 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow" title="Eliminar">✕</button>
           </div>
         `;
       }).join("");
