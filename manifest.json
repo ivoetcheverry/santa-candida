@@ -1,11 +1,11 @@
 {
   "name": "Cabaña Santa Cándida",
   "short_name": "Santa Cándida",
-  "start_url": "./index.html",
-  "scope": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#15803d",
-  "theme_color": "#15803d",
+  "background_color": "#166534",
+  "theme_color": "#166534",
   "icons": [
     {
       "src": "./logo.png",

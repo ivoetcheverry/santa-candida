@@ -16,20 +16,30 @@
   <script>
     const SUPABASE_URL = 'https://xmaplzwncqxvmlbsczif.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_zw24fTE6pgi0SJppwyw7pQ_0eNVR-Bp';
-    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: false },
-      global: { headers: { 'x-client-info': 'santa-candida-pwa' } }
-    });
-  </script>
-  <!-- Script de registro PWA (Service Worker) -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('SW registrado con éxito:', reg.scope))
-          .catch(err => console.log('Error al registrar SW:', err));
-      });
+    var supabaseClient = undefined;
+    try {
+      if (window.supabase && typeof window.supabase.createClient === 'function') {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          auth: { persistSession: false },
+          global: { headers: { 'x-client-info': 'santa-candida-pwa' } }
+        });
+      }
+    } catch (e) {
+      console.warn('Iniciando en modo offline sin cliente Supabase:', e);
     }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js', { scope: './' })
+        .then(reg => console.log('SW listo para modo offline:', reg.scope))
+        .catch(err => console.warn('Error SW:', err));
+    }
+
+    window.addEventListener('online', () => {
+      if (typeof cargarDatosSeguro === 'function') cargarDatosSeguro();
+    });
+    window.addEventListener('offline', () => {
+      if (typeof marcarEstadoOnline === 'function') marcarEstadoOnline(false);
+    });
   </script>
   <style>
     .no-scrollbar::-webkit-scrollbar { display: none; }
